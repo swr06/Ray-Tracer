@@ -9,9 +9,119 @@
       <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
       <Extensions>h;hh;hpp;hxx;h++;hm;inl;inc;ipp;xsd</Extensions>
     </Filter>
-    <Filter Include="Resource Files">
-      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
-      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
+    <Filter Include="Dependencies">
+      <UniqueIdentifier>{9802824a-7249-49b6-8a01-66b2a7bd1cd2}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Dependencies\glad">
+      <UniqueIdentifier>{a5792c30-ff80-481c-913c-fec4576e4ea2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Dependencies\imgui">
+      <UniqueIdentifier>{d52d53ef-57f9-488b-9d23-976d5b8dd562}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Application">
+      <UniqueIdentifier>{76c18481-7d9c-4cfe-b830-749a131ad505}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\GL Classes">
+      <UniqueIdentifier>{6841a7a4-f511-47e1-aa48-29639676c44c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\Shaders">
+      <UniqueIdentifier>{b248ee79-f476-4c59-8549-571b66cfca80}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\glad\src\glad.c">
+      <Filter>Dependencies\glad</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui.cpp">
+      <Filter>Dependencies\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui_demo.cpp">
+      <Filter>Dependencies\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui_draw.cpp">
+      <Filter>Dependencies\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui_impl_glfw.cpp">
+      <Filter>Dependencies\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui_impl_opengl3.cpp">
+      <Filter>Dependencies\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Dependencies\imgui\imgui_widgets.cpp">
+      <Filter>Dependencies\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Application.cpp">
+      <Filter>Source Files\Application</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\IndexBuffer.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Random.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\Shader.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\VertexArray.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\VertexBuffer.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="Dependencies\imgui\imconfig.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imgui.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imgui_impl_glfw.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imgui_impl_opengl3.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imgui_internal.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imstb_rectpack.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imstb_textedit.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Dependencies\imgui\imstb_truetype.h">
+      <Filter>Dependencies\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Application.h">
+      <Filter>Source Files\Application</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\IndexBuffer.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Random.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\Shader.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\VertexArray.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\VertexBuffer.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Core\Shaders\BasicFrag.glsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\BasicVert.glsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
   </ItemGroup>
 </Project>
