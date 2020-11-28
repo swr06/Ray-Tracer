@@ -42,12 +42,14 @@ struct RGB
 
 const uint g_Width = 800;
 const uint g_Height = 600;
-unsigned char* g_PixelData = new unsigned char[800 * 600 * 3];
+GLubyte* const g_PixelData = new GLubyte[g_Width * g_Height * 3];
 GLuint g_Texture = 0;
 
 std::unique_ptr<GLClasses::VertexBuffer> g_VBO;
 std::unique_ptr<GLClasses::VertexArray> g_VAO;
 std::unique_ptr<GLClasses::Shader> g_RenderShader;
+
+int color = 0;
 
 class RayTracerApp : public Application
 {
@@ -57,6 +59,7 @@ public:
 	{
 		m_Width = g_Width;
 		m_Height = g_Height;
+		memset(g_PixelData, 255, g_Width * g_Height * 3);
 	}
 
 	void OnUserCreate(double ts) override
@@ -75,7 +78,10 @@ public:
 
 		if (ImGui::Begin("Settings"))
 		{
-			ImGui::Text("Test");
+			if (ImGui::SliderInt("Color", &color, 0, 255))
+			{
+
+			}
 		}
 
 		ImGui::End();
@@ -117,14 +123,21 @@ void InitializeForRender()
 
 void CreateRenderTexture()
 {
-	glDeleteTextures(1, &g_Texture);
-	glGenTextures(1, &g_Texture);
+	glCreateTextures(GL_TEXTURE_2D, 1, &g_Texture);
 	glBindTexture(GL_TEXTURE_2D, g_Texture);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, g_Width, g_Height, 0, GL_RGB, GL_UNSIGNED_BYTE, g_PixelData);
+	glTextureStorage2D(g_Texture, 1, GL_RGB8, g_Width, g_Height);
+	glTextureParameteri(g_Texture, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTextureParameteri(g_Texture, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	glTextureParameteri(g_Texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTextureParameteri(g_Texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glGenerateMipmap(GL_TEXTURE_2D);
+}
+
+void BufferTextureData()
+{
+	glBindTexture(GL_TEXTURE_2D, g_Texture);
+	glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
+	glTextureSubImage2D(g_Texture, 0, 0, 0, g_Width, g_Height, GL_RGB, GL_UNSIGNED_BYTE, g_PixelData);
 }
 
 void Render()
@@ -144,6 +157,29 @@ void Render()
 	g_VAO->Unbind();
 }
 
+/* Pixel putter and getter functions */
+
+void PutPixel(const ivec2& loc, const RGB& col) 
+{
+	uint _loc = (loc.x + loc.y * g_Width) * 3;
+	g_PixelData[_loc + 0] = col.r;
+	g_PixelData[_loc + 1] = col.g;
+	g_PixelData[_loc + 2] = col.b;
+}
+
+/* Test */
+
+void WritePixelData()
+{
+	for (uint i = 0; i < 200; i++)
+	{
+		for (uint j = 0; j < 200; j++)
+		{
+			PutPixel({ i, j }, { 250, 0, 0 });
+		}
+	}
+}
+
 /* Render Method */
 void DoRenderLoop()
 {
@@ -154,30 +190,8 @@ void DoRenderLoop()
 		g_App.OnUpdate();
 		Render();
 		g_App.FinishFrame();
-	}
-}
 
-
-/* Pixel putter and getter functions */
-
-void PutPixel(const ivec2& loc, const RGB& col) 
-{
-	uint _loc = loc.x * g_Width + loc.y;
-	g_PixelData[_loc + 0] = col.r;
-	g_PixelData[_loc + 1] = col.g;
-	g_PixelData[_loc + 2] = col.b;
-}
-
-/* Test */
-
-void WritePixelData()
-{
-	for (uint i = 0; i < 800; i++)
-	{
-		for (uint j = 0; j < 600; j++)
-		{
-			PutPixel({ i, j }, { 250, 0, 0 });
-		}
+		BufferTextureData();
 	}
 }
 
@@ -185,8 +199,10 @@ int main()
 {
 	g_App.Initialize();
 	InitializeForRender();
-	WritePixelData();
+
 	CreateRenderTexture();
+	WritePixelData();
+
 	DoRenderLoop();
 	return 0;
 }

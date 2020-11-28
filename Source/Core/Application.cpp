@@ -189,7 +189,7 @@ namespace RayTracer
 		char* vendor = (char*)glGetString(GL_VENDOR);
 		char* version = (char*)glGetString(GL_VERSION);
 
-		std::cout << "-----------  The Glide 3D Game Engine -----------\n";
+		std::cout << "-----------  A Simple Raytracer :D -----------\n";
 		std::cout << "\tRENDERER : " << renderer << "\n";
 		std::cout << "\tVENDOR : " << vendor << "\n";
 		std::cout << "\tVERSION : " << version << "\n";
