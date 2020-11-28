@@ -138,7 +138,7 @@ namespace RayTracer
 		glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, 1);
 
 		// Use the latest ogl version
-		m_Window = glfwCreateWindow(m_Width, m_Height, "Glide 3D", NULL, NULL);
+		m_Window = glfwCreateWindow(m_Width, m_Height, "Ray Tracer!", NULL, NULL);
 
 		if (!m_Window)
 		{

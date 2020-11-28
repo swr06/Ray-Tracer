@@ -51,8 +51,6 @@ std::unique_ptr<GLClasses::VertexBuffer> g_VBO;
 std::unique_ptr<GLClasses::VertexArray> g_VAO;
 std::unique_ptr<GLClasses::Shader> g_RenderShader;
 
-int color = 0;
-
 class RayTracerApp : public Application
 {
 public:
@@ -80,10 +78,8 @@ public:
 
 		if (ImGui::Begin("Settings"))
 		{
-			if (ImGui::SliderInt("Color", &color, 0, 255))
-			{
+			ImGui::Text("Simple Ray Tracer v01 :)");
 
-			}
 		}
 
 		ImGui::End();
@@ -161,7 +157,7 @@ void Render()
 
 /* Pixel putter and getter functions */
 
-constexpr void PutPixel(const ivec2& loc, const RGB& col) noexcept
+void PutPixel(const ivec2& loc, const RGB& col) noexcept
 {
 	uint _loc = (loc.x + loc.y * g_Width) * 3;
 	g_PixelData[_loc + 0] = col.r;
