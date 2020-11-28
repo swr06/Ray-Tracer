@@ -8,6 +8,8 @@
 #include <glad/glad.h>          
 #include <GLFW/glfw3.h>
 
+#include <glm/glm.hpp>
+
 #include "Core/Application.h"
 #include "Core/VertexBuffer.h"
 #include "Core/VertexArray.h"
@@ -159,7 +161,7 @@ void Render()
 
 /* Pixel putter and getter functions */
 
-void PutPixel(const ivec2& loc, const RGB& col) 
+constexpr void PutPixel(const ivec2& loc, const RGB& col) noexcept
 {
 	uint _loc = (loc.x + loc.y * g_Width) * 3;
 	g_PixelData[_loc + 0] = col.r;
@@ -171,11 +173,16 @@ void PutPixel(const ivec2& loc, const RGB& col)
 
 void WritePixelData()
 {
-	for (uint i = 0; i < 200; i++)
+	for (uint i = 0; i < g_Width; i++)
 	{
-		for (uint j = 0; j < 200; j++)
+		for (uint j = 0; j < g_Height; j++)
 		{
-			PutPixel({ i, j }, { 250, 0, 0 });
+			int dist = glm::distance(glm::vec2(i, j), glm::vec2(400, 300));
+			dist = 255 - dist;
+			dist = glm::clamp(dist, 0, 255);
+
+			byte _dist = static_cast<byte>(dist);
+			PutPixel({ i, j }, { _dist, _dist, _dist });
 		}
 	}
 }
