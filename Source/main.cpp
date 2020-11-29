@@ -258,13 +258,17 @@ RGB ToRGB(const glm::ivec3& v)
 	return rgb;
 }
 
+glm::vec3 Lerp(const glm::vec3& v1, const glm::vec3& v2, float t)
+{
+	return (1.0f - t) * v1 + t * v2;
+}
+
 RGB GetGradientColorAtRay(const Ray& ray)
 {
-	glm::vec3 unit_direction = ray.GetDirection();
-	float t = 0.5 * (unit_direction.y + 1.0);
-	glm::vec3 v = (1.0f - t) * glm::vec3(255, 255, 255) + t * glm::vec3(128, 178, 255);
-	glm::ivec3 _v(v);
-	return ToRGB(_v);
+	glm::vec3 ray_direction = ray.GetDirection();
+	glm::vec3 v = Lerp(glm::vec3(255.0f, 255.0f, 255.0f), glm::vec3(128.0f, 178.0f, 255.0f), ray_direction.y);
+
+	return ToRGB(glm::ivec3(v));
 }
 
 RGB GetRayColor(const Ray& ray)
