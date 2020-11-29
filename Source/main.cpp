@@ -1,3 +1,10 @@
+/*
+Title : A Simple CPU Side Ray Tracer
+Reference : https://raytracing.github.io/books/RayTracingInOneWeekend.html
+By : Samuel Wesley Rasquinha (@swr06) 
+*/
+
+
 #include <stdio.h>
 #include <iostream>
 #include <array>
@@ -18,6 +25,7 @@
 using namespace RayTracer;
 typedef uint32_t uint;
 typedef unsigned char byte;
+typedef double floatp; // float precision
 
 // Helpers
 struct i8vec2
@@ -30,11 +38,6 @@ struct i16vec2
 	uint16_t x, y;
 };
 
-struct ivec2
-{
-	uint32_t x, y;
-};
-
 struct RGB
 {
 	byte r;
@@ -42,8 +45,8 @@ struct RGB
 	byte b;
 };
 
-const uint g_Width = 800;
-const uint g_Height = 600;
+const uint g_Width = 1024;
+const uint g_Height = 576;
 GLubyte* const g_PixelData = new GLubyte[g_Width * g_Height * 3];
 GLuint g_Texture = 0;
 
@@ -157,7 +160,7 @@ void Render()
 
 /* Pixel putter and getter functions */
 
-void PutPixel(const ivec2& loc, const RGB& col) noexcept
+void PutPixel(const glm::ivec2& loc, const RGB& col) noexcept
 {
 	uint _loc = (loc.x + loc.y * g_Width) * 3;
 	g_PixelData[_loc + 0] = col.r;
@@ -165,22 +168,16 @@ void PutPixel(const ivec2& loc, const RGB& col) noexcept
 	g_PixelData[_loc + 2] = col.b;
 }
 
-/* Test */
-
-void WritePixelData()
+RGB GetPixel(const glm::ivec2& loc)
 {
-	for (uint i = 0; i < g_Width; i++)
-	{
-		for (uint j = 0; j < g_Height; j++)
-		{
-			int dist = glm::distance(glm::vec2(i, j), glm::vec2(400, 300));
-			dist = 255 - dist;
-			dist = glm::clamp(dist, 0, 255);
+	RGB col;
+	uint _loc = (loc.x + loc.y * g_Width) * 3;
 
-			byte _dist = static_cast<byte>(dist);
-			PutPixel({ i, j }, { _dist, _dist, _dist });
-		}
-	}
+	col.r = g_PixelData[_loc + 0];
+	col.g = g_PixelData[_loc + 1];
+	col.b = g_PixelData[_loc + 2];
+
+	return col;
 }
 
 /* Render Method */
@@ -196,6 +193,111 @@ void DoRenderLoop()
 
 		BufferTextureData();
 	}
+}
+
+/* Ray Tracing and Rendering Stuff Begins Here */
+
+// Ray Tracing Constants
+
+const glm::vec3 g_Origin = glm::vec3(0.0f);
+const float g_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
+const float g_FocalLength = 1.0f;
+
+// Viewport stuff
+const float g_ViewportHeight = 2.0f;
+const float g_ViewportWidth = g_ViewportHeight * g_AspectRatio;
+
+/* Helper Classes */
+
+class Ray
+{
+public:
+
+	Ray(const glm::vec3& origin, const glm::vec3& direction) :
+		m_Origin(origin), m_Direction(direction) 
+	{
+		//
+	}
+
+	const glm::vec3& GetOrigin() const noexcept
+	{
+		return m_Origin;
+	}
+
+	const glm::vec3& GetDirection() const noexcept
+	{
+		return m_Direction;
+	}
+
+	glm::vec3 GetAt(floatp scale) noexcept
+	{
+		return m_Origin + (m_Direction * glm::vec3(scale));
+	}
+
+private:
+
+	glm::vec3 m_Origin;
+	glm::vec3 m_Direction;
+};
+
+/* Functions */
+
+RGB ToRGB(const glm::ivec3& v)
+{
+	RGB rgb;
+	glm::ivec3 val = v;
+
+	val.r = glm::clamp(val.r, 0, 255);
+	val.g = glm::clamp(val.g, 0, 255);
+	val.b = glm::clamp(val.b, 0, 255);
+
+	rgb.r = static_cast<byte>(val.r);
+	rgb.g = static_cast<byte>(val.g);
+	rgb.b = static_cast<byte>(val.b);
+
+	return rgb;
+}
+
+RGB GetGradientColorAtRay(const Ray& ray)
+{
+	glm::vec3 unit_direction = ray.GetDirection();
+	float t = 0.5 * (unit_direction.y + 1.0);
+	glm::vec3 v = (1.0f - t) * glm::vec3(255, 255, 255) + t * glm::vec3(128, 178, 255);
+	glm::ivec3 _v(v);
+	return ToRGB(_v);
+}
+
+RGB GetRayColor(const Ray& ray)
+{
+	return GetGradientColorAtRay(ray);
+
+}
+
+void TraceScene()
+{
+	const glm::vec3 Horizontal = glm::vec3(g_ViewportWidth, 0.0f, 0.0f);
+	const glm::vec3 Vertical = glm::vec3(0.0f, g_ViewportHeight, 0.0f);
+
+	for (int i = 1; i < g_Width; i++)
+	{
+		for (int j = 1; j < g_Height; j++)
+		{
+			// Calculate the UV Coordinates
+			float u = (float)i / (float)g_Width;
+			float v = (float)j / (float)g_Height;
+
+			Ray ray(g_Origin, (Horizontal * u) + (v * Vertical) - g_Origin);
+			PutPixel(glm::ivec2(i, j), GetRayColor(ray));
+		}
+	}
+}
+
+void WritePixelData()
+{
+	std::cout << std::endl << "Writing Pixel Data.." << std::endl;
+	std::cout << "Ray Tracing.." << std::endl;
+	TraceScene();
+	std::cout << "Done!";
 }
 
 int main()
