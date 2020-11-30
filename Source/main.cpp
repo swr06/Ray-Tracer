@@ -1,4 +1,4 @@
-/*
+﻿/*
 Title : A Simple CPU Side Ray Tracer
 Reference : https://raytracing.github.io/books/RayTracingInOneWeekend.html
 By : Samuel Wesley Rasquinha (@swr06) 
@@ -45,6 +45,7 @@ struct RGB
 	byte b;
 };
 
+// Needs to be 16:9 aspect ratio
 const uint g_Width = 1024;
 const uint g_Height = 576;
 GLubyte* const g_PixelData = new GLubyte[g_Width * g_Height * 3];
@@ -183,6 +184,8 @@ RGB GetPixel(const glm::ivec2& loc)
 /* Render Method */
 void DoRenderLoop()
 {
+	BufferTextureData();
+	
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
 	{
 		glViewport(0, 0, g_Width, g_Height);
@@ -190,8 +193,6 @@ void DoRenderLoop()
 		g_App.OnUpdate();
 		Render();
 		g_App.FinishFrame();
-
-		BufferTextureData();
 	}
 }
 
@@ -240,6 +241,12 @@ private:
 	glm::vec3 m_Direction;
 };
 
+struct Sphere
+{
+	glm::vec3 Center;
+	float Radius;
+};
+
 /* Functions */
 
 RGB ToRGB(const glm::ivec3& v)
@@ -258,6 +265,28 @@ RGB ToRGB(const glm::ivec3& v)
 	return rgb;
 }
 
+RGB ToRGBVec3_01(const glm::vec3& v)
+{
+	glm::vec3 val = v;
+	RGB rgb;
+
+	val.x = v.x * 255.0f;
+	val.y = v.y * 255.0f;
+	val.z = v.z * 255.0f;
+
+	glm::ivec3 _col = val;
+
+	_col.r = glm::clamp(_col.r, 0, 255);
+	_col.g = glm::clamp(_col.g, 0, 255);
+	_col.b = glm::clamp(_col.b, 0, 255);
+
+	rgb.r = static_cast<byte>(_col.r);
+	rgb.g = static_cast<byte>(_col.g);
+	rgb.b = static_cast<byte>(_col.b);
+
+	return rgb;
+}
+
 glm::vec3 Lerp(const glm::vec3& v1, const glm::vec3& v2, float t)
 {
 	return (1.0f - t) * v1 + t * v2;
@@ -271,14 +300,35 @@ RGB GetGradientColorAtRay(const Ray& ray)
 	return ToRGB(glm::ivec3(v));
 }
 
+bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray) 
+{
+	// https://raytracing.github.io/books/RayTracingInOneWeekend.html#addingasphere/ray-sphereintersection
+	// t2b⋅b + 2tb⋅(A−C) + (A−C)⋅(A−C)−r2 = 0
+
+	glm::vec3 oc = ray.GetOrigin() - sphere.Center;
+	auto A = glm::dot(ray.GetDirection(), ray.GetDirection());
+	auto B = 2.0 * glm::dot(oc, ray.GetDirection());
+	auto C = dot(oc, oc) - sphere.Radius * sphere.Radius;
+	auto Discriminant = B * B - 4 * A * C;
+	return (Discriminant > 0);
+}
+
+Sphere sphere = { glm::vec3(0, 0, -1), 0.5f };
+
 RGB GetRayColor(const Ray& ray)
 {
-	return GetGradientColorAtRay(ray);
+	if (RaySphereIntersectionTest(sphere, ray)) 
+	{ 
+		return ToRGBVec3_01(ray.GetDirection()); 
+	}
 
+	return GetGradientColorAtRay(ray);
 }
 
 void TraceScene()
 {
+	auto start_time = glfwGetTime();
+
 	const glm::vec3 Horizontal = glm::vec3(g_ViewportWidth, 0.0f, 0.0f);
 	const glm::vec3 Vertical = glm::vec3(0.0f, g_ViewportHeight, 0.0f);
 
@@ -289,11 +339,17 @@ void TraceScene()
 			// Calculate the UV Coordinates
 			float u = (float)i / (float)g_Width;
 			float v = (float)j / (float)g_Height;
+			auto BottomLeft = g_Origin - Horizontal / 2.0f - Vertical / 2.0f - glm::vec3(0, 0, g_FocalLength);
 
-			Ray ray(g_Origin, (Horizontal * u) + (v * Vertical) - g_Origin);
+			Ray ray(g_Origin, BottomLeft + (Horizontal * u) + (v * Vertical) - g_Origin);
 			PutPixel(glm::ivec2(i, j), GetRayColor(ray));
 		}
 	}
+
+	auto end_time = glfwGetTime();
+	auto total_time = end_time - start_time;
+
+	std::cout << "Tracing Finished in " << total_time << " seconds.." << std::endl;
 }
 
 void WritePixelData()
