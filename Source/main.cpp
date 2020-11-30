@@ -200,14 +200,6 @@ void DoRenderLoop()
 
 // Ray Tracing Constants
 
-const glm::vec3 g_Origin = glm::vec3(0.0f);
-const float g_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
-const float g_FocalLength = 1.0f;
-
-// Viewport stuff
-const float g_ViewportHeight = 2.0f;
-const float g_ViewportWidth = g_ViewportHeight * g_AspectRatio;
-
 /* Helper Classes */
 
 class Ray
@@ -245,6 +237,31 @@ struct Sphere
 {
 	glm::vec3 Center;
 	float Radius;
+};
+
+class Camera
+{
+public :
+
+	Ray GetRay(float u, float v)
+	{
+		const glm::vec3 Horizontal = glm::vec3(m_ViewportWidth, 0.0f, 0.0f);
+		const glm::vec3 Vertical = glm::vec3(0.0f, m_ViewportHeight, 0.0f);
+
+		auto BottomLeft = m_Origin - Horizontal / 2.0f - Vertical / 2.0f - glm::vec3(0.0f, 0.0f, m_FocalLength);
+
+		Ray ray(m_Origin, BottomLeft + (Horizontal * u) + (v * Vertical) - m_Origin);
+		return ray;
+	}
+
+private :
+	const glm::vec3 m_Origin = glm::vec3(0.0f);
+	const float m_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
+	const float m_FocalLength = 1.0f;
+
+	// Viewport stuff
+	const float m_ViewportHeight = 2.0f;
+	const float m_ViewportWidth = m_ViewportHeight * m_AspectRatio;
 };
 
 /* Functions */
@@ -352,24 +369,22 @@ RGB GetRayColor(const Ray& ray)
 	}
 }
 
+Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
+
 void TraceScene()
 {
 	auto start_time = glfwGetTime();
-
-	const glm::vec3 Horizontal = glm::vec3(g_ViewportWidth, 0.0f, 0.0f);
-	const glm::vec3 Vertical = glm::vec3(0.0f, g_ViewportHeight, 0.0f);
 
 	for (int i = 1; i < g_Width; i++)
 	{
 		for (int j = 1; j < g_Height; j++)
 		{
 			// Calculate the UV Coordinates
+			
 			float u = (float)i / (float)g_Width;
 			float v = (float)j / (float)g_Height;
-			auto BottomLeft = g_Origin - Horizontal / 2.0f - Vertical / 2.0f - glm::vec3(0, 0, g_FocalLength);
 
-			Ray ray(g_Origin, BottomLeft + (Horizontal * u) + (v * Vertical) - g_Origin);
-			PutPixel(glm::ivec2(i, j), GetRayColor(ray));
+			PutPixel(glm::ivec2(i, j), GetRayColor(g_SceneCamera.GetRay(u, v)));
 		}
 	}
 
