@@ -55,6 +55,60 @@ std::unique_ptr<GLClasses::VertexBuffer> g_VBO;
 std::unique_ptr<GLClasses::VertexArray> g_VAO;
 std::unique_ptr<GLClasses::Shader> g_RenderShader;
 
+// Utility 
+const double _INFINITY = std::numeric_limits<double>::infinity();
+const double C_PI = 3.14159265358;
+
+/* Functions */
+
+RGB ToRGB(const glm::ivec3& v)
+{
+	RGB rgb;
+	glm::ivec3 val = v;
+
+	val.r = glm::clamp(val.r, 0, 255);
+	val.g = glm::clamp(val.g, 0, 255);
+	val.b = glm::clamp(val.b, 0, 255);
+
+	rgb.r = static_cast<byte>(val.r);
+	rgb.g = static_cast<byte>(val.g);
+	rgb.b = static_cast<byte>(val.b);
+
+	return rgb;
+}
+
+RGB ToRGBVec3_01(const glm::vec3& v)
+{
+	glm::vec3 val = v;
+	RGB rgb;
+
+	val.x = v.x * 255.0f;
+	val.y = v.y * 255.0f;
+	val.z = v.z * 255.0f;
+
+	glm::ivec3 _col = val;
+
+	_col.r = glm::clamp(_col.r, 0, 255);
+	_col.g = glm::clamp(_col.g, 0, 255);
+	_col.b = glm::clamp(_col.b, 0, 255);
+
+	rgb.r = static_cast<byte>(_col.r);
+	rgb.g = static_cast<byte>(_col.g);
+	rgb.b = static_cast<byte>(_col.b);
+
+	return rgb;
+}
+
+glm::vec3 Lerp(const glm::vec3& v1, const glm::vec3& v2, float t)
+{
+	return (1.0f - t) * v1 + t * v2;
+}
+
+glm::vec3 ConvertTo0_1Range(const glm::vec3& v)
+{
+	return 0.5f * (v + 1.0f);
+}
+
 class RayTracerApp : public Application
 {
 public:
@@ -264,56 +318,6 @@ private :
 	const float m_ViewportWidth = m_ViewportHeight * m_AspectRatio;
 };
 
-/* Functions */
-
-RGB ToRGB(const glm::ivec3& v)
-{
-	RGB rgb;
-	glm::ivec3 val = v;
-
-	val.r = glm::clamp(val.r, 0, 255);
-	val.g = glm::clamp(val.g, 0, 255);
-	val.b = glm::clamp(val.b, 0, 255);
-
-	rgb.r = static_cast<byte>(val.r);
-	rgb.g = static_cast<byte>(val.g);
-	rgb.b = static_cast<byte>(val.b);
-
-	return rgb;
-}
-
-RGB ToRGBVec3_01(const glm::vec3& v)
-{
-	glm::vec3 val = v;
-	RGB rgb;
-
-	val.x = v.x * 255.0f;
-	val.y = v.y * 255.0f;
-	val.z = v.z * 255.0f;
-
-	glm::ivec3 _col = val;
-
-	_col.r = glm::clamp(_col.r, 0, 255);
-	_col.g = glm::clamp(_col.g, 0, 255);
-	_col.b = glm::clamp(_col.b, 0, 255);
-
-	rgb.r = static_cast<byte>(_col.r);
-	rgb.g = static_cast<byte>(_col.g);
-	rgb.b = static_cast<byte>(_col.b);
-
-	return rgb;
-}
-
-glm::vec3 Lerp(const glm::vec3& v1, const glm::vec3& v2, float t)
-{
-	return (1.0f - t) * v1 + t * v2;
-}
-
-glm::vec3 ConvertTo0_1Range(const glm::vec3& v)
-{
-	return 0.5f * (v + 1.0f);
-}
-
 RGB GetGradientColorAtRay(const Ray& ray)
 {
 	glm::vec3 ray_direction = ray.GetDirection();
@@ -334,7 +338,7 @@ float RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray)
 	float C = dot(oc, oc) - sphere.Radius * sphere.Radius;
 	float Discriminant = B * B - 4 * A * C;
 	
-	if (Discriminant <= 0)
+	if (Discriminant < 0)
 	{
 		return -1.0f;
 	}
@@ -347,26 +351,35 @@ float RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray)
 	}
 }
 
-Sphere sphere = { glm::vec3(0, 0, -1), 0.5f };
+Sphere sphere_0 = { glm::vec3(0, 0, -1), 0.5f };
+
+std::vector<Sphere> Spheres = { sphere_0,
+	{glm::vec3(0.0f, -100.5f, -1.0f), 100.0f}
+};
 
 RGB GetRayColor(const Ray& ray)
 {
-	// T is the distance of ray origin to the sphere's center
-	double T = RaySphereIntersectionTest(sphere, ray);
-
-	if (T > 0.0f) 
-	{ 
-		glm::vec3 Normal = ray.GetAt(T) - sphere.Center;
-		
-		// Map from -1 to 1 range to 0 to 1
-		Normal = ConvertTo0_1Range(Normal);
-		return ToRGBVec3_01(Normal);
-	}
-
-	else
+	for (auto& e : Spheres)
 	{
-		return GetGradientColorAtRay(ray);
+		// T is the distance of ray origin to the sphere's center
+		double T = RaySphereIntersectionTest(e, ray);
+
+		if (T > 0.0f)
+		{
+			glm::vec3 Normal = ray.GetAt(T) - e.Center;
+
+			if (glm::dot(Normal, ray.GetDirection()) > 0.0f)
+			{
+				Normal = -Normal;
+			}
+
+			// Map from -1 to 1 range to 0 to 1
+			Normal = ConvertTo0_1Range(Normal);
+			return ToRGBVec3_01(Normal);
+		}
 	}
+	
+	return GetGradientColorAtRay(ray);
 }
 
 Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
