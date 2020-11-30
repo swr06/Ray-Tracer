@@ -230,7 +230,7 @@ public:
 		return m_Direction;
 	}
 
-	glm::vec3 GetAt(floatp scale) noexcept
+	glm::vec3 GetAt(floatp scale) const noexcept
 	{
 		return m_Origin + (m_Direction * glm::vec3(scale));
 	}
@@ -292,37 +292,64 @@ glm::vec3 Lerp(const glm::vec3& v1, const glm::vec3& v2, float t)
 	return (1.0f - t) * v1 + t * v2;
 }
 
+glm::vec3 ConvertTo0_1Range(const glm::vec3& v)
+{
+	return 0.5f * (v + 1.0f);
+}
+
 RGB GetGradientColorAtRay(const Ray& ray)
 {
 	glm::vec3 ray_direction = ray.GetDirection();
-	glm::vec3 v = Lerp(glm::vec3(255.0f, 255.0f, 255.0f), glm::vec3(128.0f, 178.0f, 255.0f), ray_direction.y);
+	glm::vec3 v = Lerp(glm::vec3(255.0f, 255.0f, 255.0f), glm::vec3(128.0f, 178.0f, 255.0f), ray_direction.y * 6.0f);
 
 	return ToRGB(glm::ivec3(v));
 }
 
-bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray) 
+float RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray) 
 {
-	// https://raytracing.github.io/books/RayTracingInOneWeekend.html#addingasphere/ray-sphereintersection
-	// t2b⋅b + 2tb⋅(A−C) + (A−C)⋅(A−C)−r2 = 0
+	// p(t) = t²b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r² = 0
+	// The discriminant of this equation tells us the number of possible solutions
+	// we calculate that discriminant of the equation 
 
 	glm::vec3 oc = ray.GetOrigin() - sphere.Center;
-	auto A = glm::dot(ray.GetDirection(), ray.GetDirection());
-	auto B = 2.0 * glm::dot(oc, ray.GetDirection());
-	auto C = dot(oc, oc) - sphere.Radius * sphere.Radius;
-	auto Discriminant = B * B - 4 * A * C;
-	return (Discriminant > 0);
+	float A = glm::dot(ray.GetDirection(), ray.GetDirection());
+	float B = 2.0 * glm::dot(oc, ray.GetDirection());
+	float C = dot(oc, oc) - sphere.Radius * sphere.Radius;
+	float Discriminant = B * B - 4 * A * C;
+	
+	if (Discriminant <= 0)
+	{
+		return -1.0f;
+	}
+
+	else
+	{
+		// Solve the quadratic equation and
+		// find t (T is the distance from the ray origin to the center of the sphere)
+		return (-B - sqrt(Discriminant)) / (2.0f * A);
+	}
 }
 
 Sphere sphere = { glm::vec3(0, 0, -1), 0.5f };
 
 RGB GetRayColor(const Ray& ray)
 {
-	if (RaySphereIntersectionTest(sphere, ray)) 
+	// T is the distance of ray origin to the sphere's center
+	double T = RaySphereIntersectionTest(sphere, ray);
+
+	if (T > 0.0f) 
 	{ 
-		return ToRGBVec3_01(ray.GetDirection()); 
+		glm::vec3 Normal = ray.GetAt(T) - sphere.Center;
+		
+		// Map from -1 to 1 range to 0 to 1
+		Normal = ConvertTo0_1Range(Normal);
+		return ToRGBVec3_01(Normal);
 	}
 
-	return GetGradientColorAtRay(ray);
+	else
+	{
+		return GetGradientColorAtRay(ray);
+	}
 }
 
 void TraceScene()
