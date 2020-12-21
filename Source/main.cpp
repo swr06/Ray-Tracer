@@ -38,11 +38,30 @@ struct i16vec2
 	uint16_t x, y;
 };
 
-struct RGB
+class RGB
 {
+	public :
+	
+	RGB(byte R, byte G, byte B)
+	{
+		r = R;
+		g = G;
+		b = B;
+	}
+
+	RGB() : r(0), g(0), b(0)
+	{}
+
 	byte r;
 	byte g;
 	byte b;
+};
+
+struct RayHitRecord
+{
+	glm::vec3 Point;
+	glm::vec3 Normal;
+	float T; 
 };
 
 // Needs to be 16:9 aspect ratio
@@ -57,7 +76,17 @@ std::unique_ptr<GLClasses::Shader> g_RenderShader;
 
 // Utility 
 const double _INFINITY = std::numeric_limits<double>::infinity();
-const double C_PI = 3.14159265358;
+const double C_PI = 3.14159265354;
+
+inline double RandomDouble() 
+{
+	return rand() / (RAND_MAX + 1.0);
+}
+
+inline double RandomDouble(double min, double max)
+{
+	return min + (max - min) * RandomDouble();
+}
 
 /* Functions */
 
@@ -326,7 +355,7 @@ RGB GetGradientColorAtRay(const Ray& ray)
 	return ToRGB(glm::ivec3(v));
 }
 
-float RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray) 
+bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin, float tmax, RayHitRecord& hit_record) 
 {
 	// p(t) = t²b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r² = 0
 	// The discriminant of this equation tells us the number of possible solutions
@@ -340,14 +369,34 @@ float RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray)
 	
 	if (Discriminant < 0)
 	{
-		return -1.0f;
+		return false;
 	}
 
 	else
 	{
 		// Solve the quadratic equation and
 		// find t (T is the distance from the ray origin to the center of the sphere)
-		return (-B - sqrt(Discriminant)) / (2.0f * A);
+		float root = (-B - sqrt(Discriminant)) / (2.0f * A); // T
+
+		if (root < tmin || root > tmax)
+		{
+			root = (-B + sqrt(Discriminant)) / (2.0f * A);
+
+			if (root < tmin || root > tmax)
+			{
+				return false;
+			}
+		}
+
+		// The root was found successfully 
+		hit_record.T = root;
+		hit_record.Point = ray.GetAt(root);
+
+		// TODO ! : CHECK THIS! 
+		// SHOULD THE RADIUS BE MULTIPLIED HERE?
+		hit_record.Normal = (ray.GetAt(root) - sphere.Center);
+		
+		return true;
 	}
 }
 
@@ -357,29 +406,38 @@ std::vector<Sphere> Spheres = { sphere_0,
 	{glm::vec3(0.0f, -100.5f, -1.0f), 100.0f}
 };
 
-RGB GetRayColor(const Ray& ray)
+bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec)
 {
+	RayHitRecord TempRecord;
+	bool HitAnything = false;
+	float ClosestDistance = tmax;
+
 	for (auto& e : Spheres)
 	{
 		// T is the distance of ray origin to the sphere's center
-		double T = RaySphereIntersectionTest(e, ray);
+		// RaySphereIntersectionTest(e, ray, 0.0f, _INFINITY);
 
-		if (T > 0.0f)
+		if (RaySphereIntersectionTest(e, ray, tmin, ClosestDistance, TempRecord))
 		{
-			glm::vec3 Normal = ray.GetAt(T) - e.Center;
-
-			if (glm::dot(Normal, ray.GetDirection()) > 0.0f)
-			{
-				Normal = -Normal;
-			}
-
-			// Map from -1 to 1 range to 0 to 1
-			Normal = ConvertTo0_1Range(Normal);
-			return ToRGBVec3_01(Normal);
+			HitAnything = true;
+			ClosestDistance = TempRecord.T;
+			closest_hit_rec = TempRecord;
 		}
 	}
-	
-	return GetGradientColorAtRay(ray);
+
+	return HitAnything;
+}
+
+RGB GetRayColor(const Ray& UV_Ray)
+{
+	RayHitRecord ClosestSphere;
+
+	if (IntersectSceneSpheres(UV_Ray, 0, _INFINITY, ClosestSphere))
+	{
+		return ToRGBVec3_01(ClosestSphere.Normal);
+	}
+
+	return GetGradientColorAtRay(UV_Ray);
 }
 
 Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
@@ -388,9 +446,9 @@ void TraceScene()
 {
 	auto start_time = glfwGetTime();
 
-	for (int i = 1; i < g_Width; i++)
+	for (int i = 0; i < g_Width; i++)
 	{
-		for (int j = 1; j < g_Height; j++)
+		for (int j = 0; j < g_Height; j++)
 		{
 			// Calculate the UV Coordinates
 			
