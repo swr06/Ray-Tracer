@@ -350,7 +350,7 @@ private :
 RGB GetGradientColorAtRay(const Ray& ray)
 {
 	glm::vec3 ray_direction = ray.GetDirection();
-	glm::vec3 v = Lerp(glm::vec3(255.0f, 255.0f, 255.0f), glm::vec3(128.0f, 178.0f, 255.0f), ray_direction.y * 6.0f);
+	glm::vec3 v = Lerp(glm::vec3(255.0f, 255.0f, 255.0f), glm::vec3(128.0f, 178.0f, 255.0f), ray_direction.y * 2.0f);
 
 	return ToRGB(glm::ivec3(v));
 }
