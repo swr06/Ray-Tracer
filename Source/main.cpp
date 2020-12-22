@@ -4,13 +4,16 @@ Reference : https://raytracing.github.io/books/RayTracingInOneWeekend.html
 By : Samuel Wesley Rasquinha (@swr06) 
 */
 
+#define THREAD_SPAWN_COUNT 4
 
 #include <stdio.h>
 #include <iostream>
 #include <array>
 #include <random>
 #include <string>
+#include <thread>
 #include <vector>
+#include <chrono>
 #include <memory>
 
 #include <glad/glad.h>          
@@ -82,7 +85,7 @@ const double C_PI = 3.14159265354;
 
 inline double RandomFloat() 
 {
-	static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+	static std::uniform_real_distribution<float> distribution(0.0, 1.0);
 	static std::mt19937 generator;
 	return distribution(generator);
 }
@@ -248,8 +251,10 @@ void Render()
 
 /* Pixel putter and getter functions */
 
-void PutPixel(const glm::ivec2& loc, const RGB& col) noexcept
+inline void PutPixel(const glm::ivec2& loc, const RGB& col) noexcept
 {
+	if (loc.x >= g_Width || loc.y >= g_Height) { return; }
+
 	uint _loc = (loc.x + loc.y * g_Width) * 3;
 	g_PixelData[_loc + 0] = col.r;
 	g_PixelData[_loc + 1] = col.g;
@@ -271,10 +276,10 @@ RGB GetPixel(const glm::ivec2& loc)
 /* Render Method */
 void DoRenderLoop()
 {
-	BufferTextureData();
-	
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
 	{
+		BufferTextureData();
+
 		glViewport(0, 0, g_Width, g_Height);
 
 		g_App.OnUpdate();
@@ -328,7 +333,7 @@ struct Sphere
 
 inline bool PointIsInSphere(const glm::vec3& point, float radius)
 {
-	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < radius;
+	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
 }
 
 inline glm::vec3 GeneratePointInUnitSphere()
@@ -403,11 +408,11 @@ bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin,
 	{
 		// Solve the quadratic equation and
 		// find t (T is the distance from the ray origin to the center of the sphere)
-		float root = (-B - sqrt(Discriminant)) / (2.0f * A); // T
+		float root = (-B - glm::sqrt(Discriminant)) / (2.0f * A); // T
 
 		if (root < tmin || root > tmax)
 		{
-			root = (-B + sqrt(Discriminant)) / (2.0f * A);
+			root = (-B + glm::sqrt(Discriminant)) / (2.0f * A);
 
 			if (root < tmin || root > tmax)
 			{
@@ -470,9 +475,6 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 		Ray new_ray(ClosestSphere.Point, S - ClosestSphere.Point);
 
 		RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
-		//Ray_Color.r /= 4;
-		//Ray_Color.g /= 4;
-		//Ray_Color.b /= 4;
 
 		return Ray_Color;
 	}
@@ -481,17 +483,16 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 }
 
 Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
+const int SPP = 25;
+const int RAY_DEPTH = 5;
 
-void TraceScene()
+void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 {
-	auto start_time = glfwGetTime();
-	const int SPP = 200;
-
-	for (int i = 0; i < g_Width; i++)
+	for (int i = xstart; i < xstart + xsize; i++)
 	{
-		std::cout << "Rows Remaining : " << g_Width - i << "\n";
+		std::this_thread::sleep_for(std::chrono::microseconds(8));
 
-		for (int j = 0; j < g_Height; j++)
+		for (int j = ystart; j < ystart + ysize; j++)
 		{
 			glm::ivec3 FinalColor;
 
@@ -503,24 +504,34 @@ void TraceScene()
 				float v = ((float)j + RandomFloat()) / (float)g_Height;
 
 				Ray ray = g_SceneCamera.GetRay(u, v);
-				RGB ray_color = GetRayColor(ray, 50);
+				RGB ray_color = GetRayColor(ray, RAY_DEPTH);
 
 				FinalColor.r += ray_color.r;
 				FinalColor.g += ray_color.g;
 				FinalColor.b += ray_color.b;
 			}
 
-			FinalColor /= SPP;
-			PutPixel(glm::ivec2(i, j), ToRGB(FinalColor));
+			FinalColor.r = (FinalColor.r / SPP);
+			FinalColor.g = (FinalColor.g / SPP);
+			FinalColor.b = (FinalColor.b / SPP);
 
-			//PutPixel(glm::ivec2(i, j), GetRayColor(g_SceneCamera.GetRay(u, v), 50));
+			PutPixel(glm::ivec2(i, j), ToRGB(FinalColor));
 		}
 	}
+}
 
-	auto end_time = glfwGetTime();
-	auto total_time = end_time - start_time;
+void TraceScene()
+{
+	const int sizex = g_Width / THREAD_SPAWN_COUNT;
+	const int sizey = g_Height;
 
-	std::cout << "Tracing Finished in " << total_time << " seconds.." << std::endl;
+	for (int t = 0; t < THREAD_SPAWN_COUNT; t++)
+	{
+		std::thread thread(TraceThreadFunction, sizex * t, 0, sizex, sizey);
+		thread.detach();
+
+		std::this_thread::sleep_for(std::chrono::milliseconds(5));
+	}
 }
 
 void WritePixelData()
@@ -528,7 +539,6 @@ void WritePixelData()
 	std::cout << std::endl << "Writing Pixel Data.." << std::endl;
 	std::cout << "Ray Tracing.." << std::endl;
 	TraceScene();
-	std::cout << "Done!";
 }
 
 int main()
@@ -540,5 +550,7 @@ int main()
 	WritePixelData();
 
 	DoRenderLoop();
+
+	std::cin.get();
 	return 0;
 }
