@@ -8,6 +8,7 @@ By : Samuel Wesley Rasquinha (@swr06)
 #include <stdio.h>
 #include <iostream>
 #include <array>
+#include <random>
 #include <string>
 #include <vector>
 #include <memory>
@@ -65,6 +66,7 @@ struct RayHitRecord
 };
 
 // Needs to be 16:9 aspect ratio
+// 1024, 576
 const uint g_Width = 1024;
 const uint g_Height = 576;
 GLubyte* const g_PixelData = new GLubyte[g_Width * g_Height * 3];
@@ -78,14 +80,16 @@ std::unique_ptr<GLClasses::Shader> g_RenderShader;
 const double _INFINITY = std::numeric_limits<double>::infinity();
 const double C_PI = 3.14159265354;
 
-inline double RandomDouble() 
+inline double RandomFloat() 
 {
-	return rand() / (RAND_MAX + 1.0);
+	static std::uniform_real_distribution<double> distribution(0.0, 1.0);
+	static std::mt19937 generator;
+	return distribution(generator);
 }
 
-inline double RandomDouble(double min, double max)
+inline float RandomFloat(float min, float max)
 {
-	return min + (max - min) * RandomDouble();
+	return min + (max - min) * RandomFloat();
 }
 
 /* Functions */
@@ -322,6 +326,29 @@ struct Sphere
 	float Radius;
 };
 
+inline bool PointIsInSphere(const glm::vec3& point, float radius)
+{
+	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < radius;
+}
+
+inline glm::vec3 GeneratePointInUnitSphere()
+{
+	glm::vec3 ReturnVal;
+
+	ReturnVal.x = RandomFloat(-1.0f, 1.0f);
+	ReturnVal.y = RandomFloat(-1.0f, 1.0f);
+	ReturnVal.z = RandomFloat(-1.0f, 1.0f);
+
+	while (!PointIsInSphere(ReturnVal, 1.0f))
+	{
+		ReturnVal.x = RandomFloat(-1.0f, 1.0f);
+		ReturnVal.y = RandomFloat(-1.0f, 1.0f);
+		ReturnVal.z = RandomFloat(-1.0f, 1.0f);
+	}
+
+	return ReturnVal;
+}
+
 class Camera
 {
 public :
@@ -428,16 +455,29 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 	return HitAnything;
 }
 
-RGB GetRayColor(const Ray& UV_Ray)
+RGB GetRayColor(const Ray& ray, int ray_depth)
 {
-	RayHitRecord ClosestSphere;
-
-	if (IntersectSceneSpheres(UV_Ray, 0, _INFINITY, ClosestSphere))
+	if (ray_depth <= 0)
 	{
-		return ToRGBVec3_01(ClosestSphere.Normal);
+		return RGB(0, 0, 0);
 	}
 
-	return GetGradientColorAtRay(UV_Ray);
+	RayHitRecord ClosestSphere;
+
+	if (IntersectSceneSpheres(ray, 0, _INFINITY, ClosestSphere))
+	{
+		glm::vec3 S = ClosestSphere.Point + ClosestSphere.Normal + GeneratePointInUnitSphere();
+		Ray new_ray(ClosestSphere.Point, S - ClosestSphere.Point);
+
+		RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
+		//Ray_Color.r /= 4;
+		//Ray_Color.g /= 4;
+		//Ray_Color.b /= 4;
+
+		return Ray_Color;
+	}
+
+	return GetGradientColorAtRay(ray);
 }
 
 Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
@@ -445,17 +485,35 @@ Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
 void TraceScene()
 {
 	auto start_time = glfwGetTime();
+	const int SPP = 200;
 
 	for (int i = 0; i < g_Width; i++)
 	{
+		std::cout << "Rows Remaining : " << g_Width - i << "\n";
+
 		for (int j = 0; j < g_Height; j++)
 		{
-			// Calculate the UV Coordinates
-			
-			float u = (float)i / (float)g_Width;
-			float v = (float)j / (float)g_Height;
+			glm::ivec3 FinalColor;
 
-			PutPixel(glm::ivec2(i, j), GetRayColor(g_SceneCamera.GetRay(u, v)));
+			for (int s = 0; s < SPP; s++)
+			{
+				// Calculate the UV Coordinates
+
+				float u = ((float)i + RandomFloat()) / (float)g_Width;
+				float v = ((float)j + RandomFloat()) / (float)g_Height;
+
+				Ray ray = g_SceneCamera.GetRay(u, v);
+				RGB ray_color = GetRayColor(ray, 50);
+
+				FinalColor.r += ray_color.r;
+				FinalColor.g += ray_color.g;
+				FinalColor.b += ray_color.b;
+			}
+
+			FinalColor /= SPP;
+			PutPixel(glm::ivec2(i, j), ToRGB(FinalColor));
+
+			//PutPixel(glm::ivec2(i, j), GetRayColor(g_SceneCamera.GetRay(u, v), 50));
 		}
 	}
 
