@@ -114,6 +114,24 @@ RGB ToRGB(const glm::ivec3& v)
 	return rgb;
 }
 
+RGB ToRGB(const glm::vec3& v)
+{
+	glm::vec3 val = v;
+	RGB rgb;
+
+	glm::ivec3 _col = val;
+
+	_col.r = glm::clamp(_col.r, 0, 255);
+	_col.g = glm::clamp(_col.g, 0, 255);
+	_col.b = glm::clamp(_col.b, 0, 255);
+
+	rgb.r = static_cast<byte>(_col.r);
+	rgb.g = static_cast<byte>(_col.g);
+	rgb.b = static_cast<byte>(_col.b);
+
+	return rgb;
+}
+
 RGB ToRGBVec3_01(const glm::vec3& v)
 {
 	glm::vec3 val = v;
@@ -333,7 +351,7 @@ private:
 	glm::vec3 m_Direction;
 };
 
-enum class MaterialProperty
+enum class Material
 {
 	Glass = 0,
 	Diffuse,
@@ -341,31 +359,33 @@ enum class MaterialProperty
 	FuzzyMetal
 };
 
-class Material
+class Sphere
 {
 public :
 
-	virtual Ray Scatter(const Ray& input_ray, const RayHitRecord& rec, const glm::vec3& color) const {}
+	glm::vec3 Center;
+	glm::vec3 Color;
+	float Radius;
+	Material SphereMaterial;
 
-	float Attenuation;
-	MaterialProperty Property;
-};
+	Sphere(const glm::vec3& center, const glm::vec3& color, float radius, Material mat) :
+		Center(center),
+		Color(color),
+		Radius(radius),
+		SphereMaterial(mat)
+	{
 
-class Diffuse : public Material
-{
-	Ray Scatter(const Ray& input_ray, const RayHitRecord& rec, const glm::vec3& color) const override
+	}
+
+	Sphere() :
+		Center(glm::vec3(0.0f)),
+		Color(glm::vec3(0.0f)),
+		Radius(0.0f),
+		SphereMaterial(Material::Diffuse)
 	{
 
 	}
 };
-
-struct Sphere
-{
-	glm::vec3 Center;
-	float Radius;
-	Material SphereMaterial;
-};
-
 
 inline bool PointIsInSphere(const glm::vec3& point, float radius)
 {
@@ -476,13 +496,13 @@ bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin,
 
 std::vector<Sphere> Spheres = 
 { 
-	{ glm::vec3(0, 0, -1), 0.5f },
-	{ glm::vec3(0.0f, -100.5f, -1.0f), 100.0f},
-	{ glm::vec3(-1.0, 0.0, -1.0), 0.5f },
-	{ glm::vec3(1.0, 0.0, -1.0), 0.5f }
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Metal),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 255, 255), 100.0f, Material::Diffuse)
 };
 
-bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec)
+bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec, Sphere& sphere)
 {
 	RayHitRecord TempRecord;
 	bool HitAnything = false;
@@ -498,6 +518,7 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 			HitAnything = true;
 			ClosestDistance = TempRecord.T;
 			closest_hit_rec = TempRecord;
+			sphere = e;
 		}
 	}
 
@@ -506,6 +527,8 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 
 RGB GetRayColor(const Ray& ray, int ray_depth)
 {
+	Sphere hit_sphere;
+
 	if (ray_depth <= 0)
 	{
 		return RGB(0, 0, 0);
@@ -513,25 +536,45 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 
 	RayHitRecord ClosestSphere;
 
-	if (IntersectSceneSpheres(ray, 0.001f, _INFINITY, ClosestSphere))
+	if (IntersectSceneSpheres(ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere))
 	{
-		glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
-		Ray new_ray(ClosestSphere.Point, S);
+		if (hit_sphere.SphereMaterial == Material::Diffuse)
+		{
+			glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
+			Ray new_ray(ClosestSphere.Point, S);
 
-		RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
-		Ray_Color.r = Ray_Color.r / 2;
-		Ray_Color.g = Ray_Color.g / 2;
-		Ray_Color.b = Ray_Color.b / 2;
+			RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
+			Ray_Color.r = Ray_Color.r / 2;
+			Ray_Color.g = Ray_Color.g / 2;
+			Ray_Color.b = Ray_Color.b / 2;
 
-		return Ray_Color;
+			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
+			glm::vec3 FinalColor = glm::mix(Color, hit_sphere.Color, 0.1f);
+
+			return ToRGB(FinalColor);
+		}
+
+		else if (hit_sphere.SphereMaterial == Material::Metal)
+		{
+			glm::vec3 ReflectedRayDirection = glm::reflect(ray.GetDirection(), ClosestSphere.Normal);
+			Ray new_ray(ClosestSphere.Point, ReflectedRayDirection);
+
+			RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
+			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
+			glm::vec3 FinalColor = glm::vec3(0.8, 0.8, 0.8) * Color;
+
+			return ToRGB(FinalColor);
+		}
+
+		return RGB(255, 255, 255);
 	}
 
 	return GetGradientColorAtRay(ray);
 }
 
 Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
-const int SPP = 50;
-const int RAY_DEPTH = 5;
+const int SPP = 100;
+const int RAY_DEPTH = 25;
 
 void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 {
