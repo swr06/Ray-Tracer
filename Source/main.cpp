@@ -65,7 +65,8 @@ struct RayHitRecord
 {
 	glm::vec3 Point;
 	glm::vec3 Normal;
-	float T; 
+	float T = 0.0f; 
+	bool Inside = false;
 };
 
 // Needs to be 16:9 aspect ratio
@@ -276,15 +277,22 @@ RGB GetPixel(const glm::ivec2& loc)
 /* Render Method */
 void DoRenderLoop()
 {
+	static unsigned long long m_CurrentFrame = 0;
+
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
 	{
-		BufferTextureData();
+		if (m_CurrentFrame % 15 == 0)
+		{
+			BufferTextureData();
+		}
 
 		glViewport(0, 0, g_Width, g_Height);
 
 		g_App.OnUpdate();
 		Render();
 		g_App.FinishFrame();
+
+		m_CurrentFrame++;
 	}
 }
 
@@ -325,11 +333,39 @@ private:
 	glm::vec3 m_Direction;
 };
 
+enum class MaterialProperty
+{
+	Glass = 0,
+	Diffuse,
+	Metal,
+	FuzzyMetal
+};
+
+class Material
+{
+public :
+
+	virtual Ray Scatter(const Ray& input_ray, const RayHitRecord& rec, const glm::vec3& color) const {}
+
+	float Attenuation;
+	MaterialProperty Property;
+};
+
+class Diffuse : public Material
+{
+	Ray Scatter(const Ray& input_ray, const RayHitRecord& rec, const glm::vec3& color) const override
+	{
+
+	}
+};
+
 struct Sphere
 {
 	glm::vec3 Center;
 	float Radius;
+	Material SphereMaterial;
 };
+
 
 inline bool PointIsInSphere(const glm::vec3& point, float radius)
 {
@@ -426,16 +462,24 @@ bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin,
 
 		// TODO ! : CHECK THIS! 
 		// SHOULD THE RADIUS BE MULTIPLIED HERE?
-		hit_record.Normal = (ray.GetAt(root) - sphere.Center);
+		hit_record.Normal = (hit_record.Point - sphere.Center) / sphere.Radius;
+		
+		if (glm::dot(ray.GetDirection(), hit_record.Normal) > 0.0f)
+		{
+			hit_record.Normal = -hit_record.Normal;
+			hit_record.Inside = true;
+		}
 		
 		return true;
 	}
 }
 
-Sphere sphere_0 = { glm::vec3(0, 0, -1), 0.5f };
-
-std::vector<Sphere> Spheres = { sphere_0,
-	{glm::vec3(0.0f, -100.5f, -1.0f), 100.0f}
+std::vector<Sphere> Spheres = 
+{ 
+	{ glm::vec3(0, 0, -1), 0.5f },
+	{ glm::vec3(0.0f, -100.5f, -1.0f), 100.0f},
+	{ glm::vec3(-1.0, 0.0, -1.0), 0.5f },
+	{ glm::vec3(1.0, 0.0, -1.0), 0.5f }
 };
 
 bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec)
@@ -469,12 +513,15 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 
 	RayHitRecord ClosestSphere;
 
-	if (IntersectSceneSpheres(ray, 0, _INFINITY, ClosestSphere))
+	if (IntersectSceneSpheres(ray, 0.001f, _INFINITY, ClosestSphere))
 	{
-		glm::vec3 S = ClosestSphere.Point + ClosestSphere.Normal + GeneratePointInUnitSphere();
-		Ray new_ray(ClosestSphere.Point, S - ClosestSphere.Point);
+		glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
+		Ray new_ray(ClosestSphere.Point, S);
 
 		RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
+		Ray_Color.r = Ray_Color.r / 2;
+		Ray_Color.g = Ray_Color.g / 2;
+		Ray_Color.b = Ray_Color.b / 2;
 
 		return Ray_Color;
 	}
@@ -483,7 +530,7 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 }
 
 Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
-const int SPP = 25;
+const int SPP = 50;
 const int RAY_DEPTH = 5;
 
 void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
@@ -510,7 +557,7 @@ void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 				FinalColor.g += ray_color.g;
 				FinalColor.b += ray_color.b;
 			}
-
+			
 			FinalColor.r = (FinalColor.r / SPP);
 			FinalColor.g = (FinalColor.g / SPP);
 			FinalColor.b = (FinalColor.b / SPP);
@@ -550,7 +597,5 @@ int main()
 	WritePixelData();
 
 	DoRenderLoop();
-
-	std::cin.get();
 	return 0;
 }
