@@ -82,7 +82,7 @@ std::unique_ptr<GLClasses::Shader> g_RenderShader;
 
 // Utility 
 const double _INFINITY = std::numeric_limits<double>::infinity();
-const double C_PI = 3.14159265354;
+const double PI = 3.14159265354;
 
 inline double RandomFloat() 
 {
@@ -415,27 +415,47 @@ inline glm::vec3 GeneratePointInUnitSphere()
 
 class Camera
 {
-public :
+public:
 
-	Ray GetRay(float u, float v)
+	Camera(const glm::vec3& lookfrom, const glm::vec3& lookat, const glm::vec3& up, 
+		float fov) : m_FOV(fov)
 	{
-		const glm::vec3 Horizontal = glm::vec3(m_ViewportWidth, 0.0f, 0.0f);
-		const glm::vec3 Vertical = glm::vec3(0.0f, m_ViewportHeight, 0.0f);
+		float theta = glm::radians(fov);
+		float H = glm::tan(theta / 2.0f);
 
-		auto BottomLeft = m_Origin - Horizontal / 2.0f - Vertical / 2.0f - glm::vec3(0.0f, 0.0f, m_FocalLength);
+		m_ViewportHeight = 2.0f * H;
+		m_ViewportWidth = m_ViewportHeight * m_AspectRatio;
 
-		Ray ray(m_Origin, BottomLeft + (Horizontal * u) + (v * Vertical) - m_Origin);
+		auto w = glm::normalize(lookfrom - lookat);
+		auto u = glm::normalize(glm::cross(up, w));
+		auto v = glm::cross(w, u);
+
+		m_Origin = lookfrom;
+		m_Horizontal = m_ViewportWidth * u;
+		m_Vertical = m_ViewportHeight * v;
+		m_BottomLeft = m_Origin - (m_Horizontal / 2.0f) - (m_Vertical / 2.0f) - w;
+
+	}
+
+	inline Ray GetRay(float u, float v) const 
+	{
+		Ray ray(m_Origin, m_BottomLeft + (m_Horizontal * u) + (v * m_Vertical) - m_Origin);
 		return ray;
 	}
 
 private :
-	const glm::vec3 m_Origin = glm::vec3(0.0f);
+	glm::vec3 m_Origin = glm::vec3(0.0f);
 	const float m_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
 	const float m_FocalLength = 1.0f;
 
 	// Viewport stuff
-	const float m_ViewportHeight = 2.0f;
-	const float m_ViewportWidth = m_ViewportHeight * m_AspectRatio;
+	float m_ViewportHeight;
+	float m_ViewportWidth;
+	glm::vec3 m_Horizontal;
+	glm::vec3 m_Vertical;
+	glm::vec3 m_BottomLeft;
+
+	float m_FOV;
 };
 
 inline RGB GetGradientColorAtRay(const Ray& ray)
@@ -501,7 +521,7 @@ std::vector<Sphere> Spheres =
 { 
 	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(0.8f, 0.6f, 0.2f), 0.5f, Material::Metal, 0.65f),
 	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0.8f, 0.8f, 0.8f), 0.5f, Material::Metal, 0.05f),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0.8f, 0.8f, 0.8f), 0.5f, Material::Metal, 0.0f),
 	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 215, 10), 100.0f, Material::Diffuse)
 };
 
@@ -553,6 +573,7 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 
 			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
 			glm::vec3 FinalColor = hit_sphere.Color * Color;
+			//glm::vec3 FinalColor = glm::mix(hit_sphere.Color, Color, 0.4f);
 
 			return ToRGB(FinalColor);
 		}
@@ -576,15 +597,24 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 	return GetGradientColorAtRay(ray);
 }
 
-Camera g_SceneCamera; // Origin = 0,0,0. Faces the negative Z axis
+/*Camera g_SceneCamera(glm::vec3(-2.0f, 2.0f, 1.0f),
+	glm::vec3(0.0f, 0.0f, -1.0f),
+	glm::vec3(0.0f, 1.0f, 0.0f),
+	90.0f);*/ 
+
+Camera g_SceneCamera(glm::vec3(0.0f),
+	glm::vec3(0.0f, 0.0f, -1.0f),
+	glm::vec3(0.0f, 1.0f, 0.0f),
+	90.0f);
+
 const int SPP = 100;
-const int RAY_DEPTH = 25;
+const int RAY_DEPTH = 10;
 
 void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 {
 	for (int i = xstart; i < xstart + xsize; i++)
 	{
-		std::this_thread::sleep_for(std::chrono::microseconds(8));
+		//std::this_thread::sleep_for(std::chrono::microseconds(8));
 
 		for (int j = ystart; j < ystart + ysize; j++)
 		{
