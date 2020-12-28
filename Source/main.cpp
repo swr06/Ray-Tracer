@@ -496,9 +496,9 @@ bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin,
 
 std::vector<Sphere> Spheres = 
 { 
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Metal),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(0.8f, 0.6f, 0.2f), 0.5f, Material::Metal),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0.8f, 0.8f, 0.8f), 0.5f, Material::Metal),
 	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 255, 255), 100.0f, Material::Diffuse)
 };
 
@@ -549,7 +549,7 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 			Ray_Color.b = Ray_Color.b / 2;
 
 			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
-			glm::vec3 FinalColor = glm::mix(Color, hit_sphere.Color, 0.1f);
+			glm::vec3 FinalColor = hit_sphere.Color * Color;
 
 			return ToRGB(FinalColor);
 		}
