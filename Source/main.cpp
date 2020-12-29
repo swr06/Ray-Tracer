@@ -376,10 +376,11 @@ private:
 
 enum class Material
 {
-	Glass = 0,
+	Invalid = -1,
+	Glass,
 	Diffuse,
 	Metal,
-	FuzzyMetal
+	FuzzyMetal,
 };
 
 class Sphere
@@ -406,7 +407,7 @@ public:
 		Center(glm::vec3(0.0f)),
 		Color(glm::vec3(0.0f)),
 		Radius(0.0f),
-		SphereMaterial(Material::Diffuse),
+		SphereMaterial(Material::Invalid),
 		FuzzLevel(0.0f)
 	{
 
@@ -572,7 +573,7 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 }
 
 const int SPP = 100;
-const int RAY_DEPTH = 10;
+const int RAY_DEPTH = 50;
 
 /* Non recursive and custom ray tracing model */
 
@@ -585,8 +586,7 @@ RGB GetRayColor(const Ray& ray)
 
 	RayHitRecord ClosestSphere;
 	glm::vec3 FinalColor = glm::vec3(1.0f);
-
-	bool FoundIntersection = false;
+	glm::vec3 SphereColor = glm::vec3(1.0f);
 
 	for (int i = 0; i < RAY_DEPTH; i++)
 	{
@@ -600,8 +600,7 @@ RGB GetRayColor(const Ray& ray)
 				new_ray.SetOrigin(ClosestSphere.Point);
 				new_ray.SetDirection(S);
 
-				FinalColor = hit_sphere.Color;
-				FoundIntersection = true;
+				SphereColor = hit_sphere.Color;
 			}
 		}
 
@@ -616,14 +615,12 @@ RGB GetRayColor(const Ray& ray)
 
 	if (hit_sphere.SphereMaterial == Material::Diffuse)
 	{
-		if (FoundIntersection)
-		{
-			FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
-			FinalColor = FinalColor / (float)hit_times;
-		}
+		FinalColor /= 2.0f; 
+		FinalColor = FinalColor / (float)hit_times;
 
-		glm::vec3 Color = FinalColor;
-		return ToRGB(Color);
+		//FinalColor *= SphereColor;
+
+		return ToRGB(FinalColor);
 	}
 
 	return GetGradientColorAtRay(new_ray);
