@@ -379,8 +379,7 @@ enum class Material
 	Invalid = -1,
 	Glass,
 	Diffuse,
-	Metal,
-	FuzzyMetal
+	Metal
 };
 
 class Sphere
@@ -649,7 +648,7 @@ void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 
 		for (int j = ystart; j < ystart + ysize; j++)
 		{
-			glm::ivec3 FinalColor;
+			glm::vec3 FinalColor;
 
 			for (int s = 0; s < SPP; s++)
 			{

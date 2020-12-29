@@ -208,7 +208,7 @@ namespace RayTracer
 		std::cout << "------------------------------------------------\n";
 
 		std::cout << "INITIALIZING RAY TRACER\n";
-		glfwSwapInterval(1);
+		//glfwSwapInterval(1);
 
 		return;
 	}

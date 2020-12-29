@@ -71,6 +71,9 @@
     <ClCompile Include="Core\VertexBuffer.cpp">
       <Filter>Source Files\GL Classes</Filter>
     </ClCompile>
+    <ClCompile Include="_main.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -121,6 +124,12 @@
       <Filter>Source Files\Shaders</Filter>
     </None>
     <None Include="Core\Shaders\BasicVert.glsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\RayTraceFrag.glsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\RayTraceVert.glsl">
       <Filter>Source Files\Shaders</Filter>
     </None>
   </ItemGroup>
