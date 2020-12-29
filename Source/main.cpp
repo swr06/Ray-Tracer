@@ -1,7 +1,7 @@
 ﻿/*
 Title : A Simple CPU Side Ray Tracer
 Reference : https://raytracing.github.io/books/RayTracingInOneWeekend.html
-By : Samuel Wesley Rasquinha (@swr06) 
+By : Samuel Wesley Rasquinha (@swr06)
 */
 
 #define THREAD_SPAWN_COUNT 4
@@ -44,8 +44,8 @@ struct i16vec2
 
 class RGB
 {
-	public :
-	
+public:
+
 	RGB(byte R, byte G, byte B)
 	{
 		r = R;
@@ -56,6 +56,16 @@ class RGB
 	RGB() : r(0), g(0), b(0)
 	{}
 
+	inline glm::vec3 ToVec3() const noexcept
+	{
+		glm::vec3 vec;
+		vec.r = static_cast<float>(r);
+		vec.g = static_cast<float>(g);
+		vec.b = static_cast<float>(b);
+
+		return vec;
+	}
+
 	byte r;
 	byte g;
 	byte b;
@@ -65,7 +75,7 @@ struct RayHitRecord
 {
 	glm::vec3 Point;
 	glm::vec3 Normal;
-	float T = 0.0f; 
+	float T = 0.0f;
 	bool Inside = false;
 };
 
@@ -84,7 +94,7 @@ std::unique_ptr<GLClasses::Shader> g_RenderShader;
 const double _INFINITY = std::numeric_limits<double>::infinity();
 const double PI = 3.14159265354;
 
-inline double RandomFloat() 
+inline double RandomFloat()
 {
 	static std::uniform_real_distribution<float> distribution(0.0, 1.0);
 	static std::mt19937 generator;
@@ -324,25 +334,38 @@ class Ray
 {
 public:
 
+	Ray() : m_Origin(glm::vec3(0.0f)), m_Direction(glm::vec3(0.0f))
+	{  }
+
 	Ray(const glm::vec3& origin, const glm::vec3& direction) :
-		m_Origin(origin), m_Direction(direction) 
+		m_Origin(origin), m_Direction(direction)
 	{
 		//
 	}
 
-	const glm::vec3& GetOrigin() const noexcept
+	inline const glm::vec3& GetOrigin() const noexcept
 	{
 		return m_Origin;
 	}
 
-	const glm::vec3& GetDirection() const noexcept
+	inline const glm::vec3& GetDirection() const noexcept
 	{
 		return m_Direction;
 	}
 
-	glm::vec3 GetAt(floatp scale) const noexcept
+	inline glm::vec3 GetAt(floatp scale) const noexcept
 	{
 		return m_Origin + (m_Direction * glm::vec3(scale));
+	}
+
+	inline void SetOrigin(const glm::vec3& origin) noexcept
+	{
+		m_Origin = origin;
+	}
+
+	inline void SetDirection(const glm::vec3& dir) noexcept
+	{
+		m_Direction = dir;
 	}
 
 private:
@@ -361,7 +384,7 @@ enum class Material
 
 class Sphere
 {
-public :
+public:
 
 	glm::vec3 Center;
 	glm::vec3 Color;
@@ -417,7 +440,7 @@ class Camera
 {
 public:
 
-	Camera(const glm::vec3& lookfrom, const glm::vec3& lookat, const glm::vec3& up, 
+	Camera(const glm::vec3& lookfrom, const glm::vec3& lookat, const glm::vec3& up,
 		float fov) : m_FOV(fov)
 	{
 		float theta = glm::radians(fov);
@@ -437,13 +460,13 @@ public:
 
 	}
 
-	inline Ray GetRay(float u, float v) const 
+	inline Ray GetRay(float u, float v) const
 	{
 		Ray ray(m_Origin, m_BottomLeft + (m_Horizontal * u) + (v * m_Vertical) - m_Origin);
 		return ray;
 	}
 
-private :
+private:
 	glm::vec3 m_Origin = glm::vec3(0.0f);
 	const float m_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
 	const float m_FocalLength = 1.0f;
@@ -466,7 +489,7 @@ inline RGB GetGradientColorAtRay(const Ray& ray)
 	return ToRGB(glm::ivec3(v));
 }
 
-inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin, float tmax, RayHitRecord& hit_record) 
+inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, float tmin, float tmax, RayHitRecord& hit_record)
 {
 	// p(t) = t²b⋅b+2tb⋅(A−C)+(A−C)⋅(A−C)−r² = 0
 	// The discriminant of this equation tells us the number of possible solutions
@@ -477,7 +500,7 @@ inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, floa
 	float B = 2.0 * glm::dot(oc, ray.GetDirection());
 	float C = dot(oc, oc) - sphere.Radius * sphere.Radius;
 	float Discriminant = B * B - 4 * A * C;
-	
+
 	if (Discriminant < 0)
 	{
 		return false;
@@ -506,23 +529,23 @@ inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, floa
 		// TODO ! : CHECK THIS! 
 		// SHOULD THE RADIUS BE MULTIPLIED HERE?
 		hit_record.Normal = (hit_record.Point - sphere.Center) / sphere.Radius;
-		
+
 		if (glm::dot(ray.GetDirection(), hit_record.Normal) > 0.0f)
 		{
 			hit_record.Normal = -hit_record.Normal;
 			hit_record.Inside = true;
 		}
-		
+
 		return true;
 	}
 }
 
-std::vector<Sphere> Spheres = 
-{ 
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(0.8f, 0.6f, 0.2f), 0.5f, Material::Metal, 0.65f),
-	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0.8f, 0.8f, 0.8f), 0.5f, Material::Metal, 0.0f),
-	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 215, 10), 100.0f, Material::Diffuse)
+std::vector<Sphere> Spheres =
+{
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse, 0.65f),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse, 0.0f),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 0, 0), 100.0f, Material::Diffuse)
 };
 
 bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec, Sphere& sphere)
@@ -548,67 +571,73 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 	return HitAnything;
 }
 
-RGB GetRayColor(const Ray& ray, int ray_depth)
+const int SPP = 100;
+const int RAY_DEPTH = 10;
+
+/* Non recursive and custom ray tracing model */
+
+RGB GetRayColor(const Ray& ray)
 {
+	int hit_times = RAY_DEPTH;
+
+	Ray new_ray = ray;
 	Sphere hit_sphere;
 
-	if (ray_depth <= 0)
-	{
-		return RGB(0, 0, 0);
-	}
-
 	RayHitRecord ClosestSphere;
+	glm::vec3 FinalColor = glm::vec3(1.0f);
 
-	if (IntersectSceneSpheres(ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere))
+	bool FoundIntersection = false;
+
+	for (int i = 0; i < RAY_DEPTH; i++)
 	{
-		if (hit_sphere.SphereMaterial == Material::Diffuse)
+		if (IntersectSceneSpheres(new_ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere))
 		{
-			glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
-			Ray new_ray(ClosestSphere.Point, S);
+			if (hit_sphere.SphereMaterial == Material::Diffuse)
+			{
+				// Get the final ray direction
 
-			RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
-			Ray_Color.r = Ray_Color.r / 2;
-			Ray_Color.g = Ray_Color.g / 2;
-			Ray_Color.b = Ray_Color.b / 2;
+				glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
+				new_ray.SetOrigin(ClosestSphere.Point);
+				new_ray.SetDirection(S);
 
-			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
-			glm::vec3 FinalColor = hit_sphere.Color * Color;
-			//glm::vec3 FinalColor = glm::mix(hit_sphere.Color, Color, 0.4f);
-
-			return ToRGB(FinalColor);
+				FinalColor = hit_sphere.Color;
+				FoundIntersection = true;
+			}
 		}
 
-		else if (hit_sphere.SphereMaterial == Material::Metal)
+		else
 		{
-			glm::vec3 ReflectedRayDirection = glm::reflect(ray.GetDirection(), ClosestSphere.Normal);
-			ReflectedRayDirection += hit_sphere.FuzzLevel * GeneratePointInUnitSphere();
-			Ray new_ray(ClosestSphere.Point, ReflectedRayDirection);
+			hit_times = i < 1 ? 1 : i;
+			FinalColor = GetGradientColorAtRay(new_ray).ToVec3();
 
-			RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
-			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
-			glm::vec3 FinalColor = hit_sphere.Color * Color;
-
-			return ToRGB(FinalColor);
+			break;
 		}
-
-		return RGB(255, 255, 255);
 	}
 
-	return GetGradientColorAtRay(ray);
+	if (hit_sphere.SphereMaterial == Material::Diffuse)
+	{
+		if (FoundIntersection)
+		{
+			FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
+			FinalColor = FinalColor / (float)hit_times;
+		}
+
+		glm::vec3 Color = FinalColor;
+		return ToRGB(Color);
+	}
+
+	return GetGradientColorAtRay(new_ray);
 }
 
 /*Camera g_SceneCamera(glm::vec3(-2.0f, 2.0f, 1.0f),
 	glm::vec3(0.0f, 0.0f, -1.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
-	90.0f);*/ 
+	90.0f);*/
 
 Camera g_SceneCamera(glm::vec3(0.0f),
 	glm::vec3(0.0f, 0.0f, -1.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
 	90.0f);
-
-const int SPP = 100;
-const int RAY_DEPTH = 10;
 
 void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 {
@@ -628,13 +657,13 @@ void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 				float v = ((float)j + RandomFloat()) / (float)g_Height;
 
 				Ray ray = g_SceneCamera.GetRay(u, v);
-				RGB ray_color = GetRayColor(ray, RAY_DEPTH);
+				RGB ray_color = GetRayColor(ray);
 
 				FinalColor.r += ray_color.r;
 				FinalColor.g += ray_color.g;
 				FinalColor.b += ray_color.b;
 			}
-			
+
 			FinalColor.r = (FinalColor.r / SPP);
 			FinalColor.g = (FinalColor.g / SPP);
 			FinalColor.b = (FinalColor.b / SPP);
