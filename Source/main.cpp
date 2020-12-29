@@ -380,7 +380,7 @@ enum class Material
 	Glass,
 	Diffuse,
 	Metal,
-	FuzzyMetal,
+	FuzzyMetal
 };
 
 class Sphere
@@ -586,7 +586,6 @@ RGB GetRayColor(const Ray& ray)
 
 	RayHitRecord ClosestSphere;
 	glm::vec3 FinalColor = glm::vec3(1.0f);
-	glm::vec3 SphereColor = glm::vec3(1.0f);
 
 	for (int i = 0; i < RAY_DEPTH; i++)
 	{
@@ -600,13 +599,13 @@ RGB GetRayColor(const Ray& ray)
 				new_ray.SetOrigin(ClosestSphere.Point);
 				new_ray.SetDirection(S);
 
-				SphereColor = hit_sphere.Color;
+				FinalColor = hit_sphere.Color;
 			}
 		}
 
 		else
 		{
-			hit_times = i < 1 ? 1 : i;
+			hit_times = i;
 			FinalColor = GetGradientColorAtRay(new_ray).ToVec3();
 
 			break;
@@ -615,10 +614,16 @@ RGB GetRayColor(const Ray& ray)
 
 	if (hit_sphere.SphereMaterial == Material::Diffuse)
 	{
-		FinalColor /= 2.0f; 
-		FinalColor = FinalColor / (float)hit_times;
+		if (RAY_DEPTH - hit_times <= 0)
+		{
+			FinalColor = glm::vec3(0, 0, 0);
+		}
 
-		//FinalColor *= SphereColor;
+		else
+		{
+			FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
+			FinalColor = FinalColor / (float)hit_times;
+		}
 
 		return ToRGB(FinalColor);
 	}
