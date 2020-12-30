@@ -218,9 +218,26 @@ vec3 GetRayColor(Ray ray)
 
 void main()
 {
+	const int SPP = 50;
 	g_RNG_SEED = int(gl_FragCoord.x) * int(u_ViewportDimensions.x) + int(gl_FragCoord.y) * int(u_Time * u_Time * 1000);
-	Ray ray = GetRay(v_TexCoords);
+	
+	vec3 FinalColor = vec3(0.0f);
+	vec2 Pixel;
 
-	float v = nextFloat(g_RNG_SEED);
-	o_Color = GetRayColor(ray);
+	Pixel.x = v_TexCoords.x * u_ViewportDimensions.x;
+	Pixel.y = v_TexCoords.y * u_ViewportDimensions.y;
+
+	for (int s = 0 ; s < SPP ; s++)
+	{
+		int seed = g_RNG_SEED + s;
+
+		float u = (Pixel.x + nextFloat(seed)) / u_ViewportDimensions.x;
+		float v = (Pixel.y + nextFloat(seed)) / u_ViewportDimensions.y;
+
+		FinalColor += GetRayColor(GetRay(vec2(u, v)));
+	}
+
+	FinalColor = FinalColor / float(SPP);
+
+	o_Color = FinalColor;
 }
