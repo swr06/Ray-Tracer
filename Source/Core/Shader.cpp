@@ -10,8 +10,16 @@ namespace GLClasses
 
 	Shader::~Shader()
 	{
+		m_VertexData = "";
+		m_FragmentData = "";
+		m_GeometryData = "";
+		m_VertexPath = "";
+		m_FragmentPath = "";
+		m_GeometryData = "";
 		glDeleteProgram(m_Program);
 		glUseProgram(0);
+		Location_map.clear();
+
 	}
 
 	void Shader::CompileShaders()
@@ -186,6 +194,13 @@ namespace GLClasses
 
 	void Shader::Destroy()
 	{
+		m_VertexData = "";
+		m_FragmentData = "";
+		m_GeometryData = "";
+		m_VertexPath = "";
+		m_FragmentPath = "";
+		m_GeometryData = "";
+		Location_map.clear();
 		glDeleteProgram(m_Program);
 		glUseProgram(0);
 	}

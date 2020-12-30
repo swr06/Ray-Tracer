@@ -52,6 +52,7 @@ struct RayHitRecord
 
 // Uniforms
 uniform vec2 u_ViewportDimensions;
+uniform float u_Time;
 
 // Camera related uniforms
 uniform vec3 u_CameraBottomLeft;
@@ -68,10 +69,43 @@ uniform int u_SceneSphereCount;
 vec3 lerp(vec3 v1, vec3 v2, float t);
 vec3 GetGradientColorAtRay(Ray ray);
 
+// Utility
+
+int g_RNG_SEED = 0;
+
 vec3 lerp(vec3 v1, vec3 v2, float t)
 {
 	return (1.0f - t) * v1 + t * v2;
 }
+
+int MIN = -2147483648;
+int MAX = 2147483647;
+
+int xorshift(in int value) {
+    // Xorshift*32
+    // Based on George Marsaglia's work: http://www.jstatsoft.org/v08/i14/paper
+    value ^= value << 13;
+    value ^= value >> 17;
+    value ^= value << 5;
+    return value;
+}
+
+int nextInt(inout int seed) {
+    seed = xorshift(seed);
+    return seed;
+}
+
+float nextFloat(inout int seed) {
+    seed = xorshift(seed);
+    // FIXME: This should have been a seed mapped from MIN..MAX to 0..1 instead
+    return abs(fract(float(seed) / 3141.592653));
+}
+
+float nextFloat(inout int seed, in float max) {
+    return nextFloat(seed) * max;
+}
+
+// ---- 
 
 vec3 GetGradientColorAtRay(Ray ray)
 {
@@ -158,23 +192,6 @@ float ConvertValueRange(float v, vec2 r1, vec2 r2)
 	return ret;
 }
 
-float RandomFloat(vec2 st) 
-{
-    float res = fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
-	return res + 0.0001f;
-}
-
-float RandomFloat(vec2 st, vec2 range)
-{
-	float v = RandomFloat(st);
-	return ConvertValueRange(v, vec2(0.0f, 1.0f), range);
-}
-
-bool PointIsInUnitSphere(vec3 p)
-{
-	return ((p.x * p.x) + (p.y * p.y) +  (p.z * p.z)) < 1.0f;
-}
-
 Ray GetRay(vec2 uv)
 {
 	Ray ray;
@@ -201,6 +218,9 @@ vec3 GetRayColor(Ray ray)
 
 void main()
 {
+	g_RNG_SEED = int(gl_FragCoord.x) * int(u_ViewportDimensions.x) + int(gl_FragCoord.y) * int(u_Time * u_Time * 1000);
 	Ray ray = GetRay(v_TexCoords);
+
+	float v = nextFloat(g_RNG_SEED);
 	o_Color = GetRayColor(ray);
 }

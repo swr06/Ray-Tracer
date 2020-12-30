@@ -22,6 +22,8 @@ using namespace RayTracer;
 
 const int g_Width = 1024;
 const int g_Height = 576;
+std::unique_ptr<GLClasses::Shader> _TraceShader;
+std::pair<std::string, std::string> TraceShaderPaths = { "Core/Shaders/RayTraceVert.glsl", "Core/Shaders/RayTraceFrag.glsl" }; ;
 
 inline float RandomFloat()
 {
@@ -101,7 +103,12 @@ public:
 
 	void OnEvent(Event e) override
 	{
-
+		if (e.type == EventTypes::KeyPress && e.key == GLFW_KEY_F1)
+		{
+			_TraceShader->Destroy();
+			_TraceShader->CreateShaderProgramFromFile(TraceShaderPaths.first, TraceShaderPaths.second);
+			_TraceShader->CompileShaders();
+		}
 	}
 
 };
@@ -243,10 +250,11 @@ void SetSceneSphereUniforms(GLClasses::Shader& shader)
 int main()
 {
 	g_App.Initialize();
-
+	_TraceShader = std::unique_ptr<GLClasses::Shader>(new GLClasses::Shader);
+	GLClasses::Shader& TraceShader = *_TraceShader;
+	
 	GLClasses::VertexBuffer VBO;
 	GLClasses::VertexArray VAO;
-	GLClasses::Shader TraceShader;
 	unsigned long long CurrentFrame = 0;
 
 	float Vertices[] =
@@ -263,7 +271,7 @@ int main()
 	VBO.VertexAttribPointer(1, 2, GL_FLOAT, 0, 4 * sizeof(GLfloat), (void*)(2 * sizeof(GLfloat)));
 	VAO.Unbind();
 
-	TraceShader.CreateShaderProgramFromFile("Core/Shaders/RayTraceVert.glsl", "Core/Shaders/RayTraceFrag.glsl");
+	TraceShader.CreateShaderProgramFromFile(TraceShaderPaths.first, TraceShaderPaths.second);
 	TraceShader.CompileShaders();
 
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
@@ -279,6 +287,7 @@ int main()
 		// Render
 		TraceShader.Use();
 
+		TraceShader.SetFloat("u_Time", glfwGetTime());
 		TraceShader.SetVector2f("u_ViewportDimensions", glm::vec2(g_Width, g_Height));
 		TraceShader.SetVector3f("u_CameraBottomLeft", g_SceneCamera.m_BottomLeft);
 		TraceShader.SetVector3f("u_CameraHorizontal", g_SceneCamera.m_Horizontal);
