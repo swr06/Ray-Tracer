@@ -4,7 +4,7 @@
 #define PI 3.14159265354f
 #define RAY_BOUNCE_LIMIT 50
 #define SAMPLES_PER_PIXEL 100
-#define MAX_SPHERES 25
+#define MAX_SPHERES 5
 
 out vec3 o_Color;
 
@@ -47,6 +47,7 @@ struct RayHitRecord
 	float T;
 	bool Inside;
 	bool Hit;
+	Sphere sphere;
 };
 
 // Uniforms
@@ -58,12 +59,9 @@ uniform vec3 u_CameraHorizontal;
 uniform vec3 u_CameraVertical;
 uniform vec3 u_CameraOrigin;
 
-// Textures
-uniform sampler2D u_UnitSpherePoints; // A 32x32 floating point texture to store noise
-
 // Spheres
-uniform Sphere u_Sphere;
 uniform Sphere u_SceneSpheres[MAX_SPHERES];
+uniform int u_SceneSphereCount;
 
 // Functions
 
@@ -131,14 +129,78 @@ RayHitRecord RaySphereIntersectionTest(const Sphere sphere, Ray ray, float tmin,
 	}
 }
 
-void main()
+RayHitRecord IntersectSceneSpheres(Ray ray, float tmin, float tmax)
+{
+	RayHitRecord TempRecord;
+	RayHitRecord ClosestRecord;
+	bool HitAnything = false;
+	float ClosestDistance = tmax;
+
+	for (int i = 0 ; i < u_SceneSphereCount ; i++)
+	{
+		TempRecord = RaySphereIntersectionTest(u_SceneSpheres[i], ray, tmin, ClosestDistance);
+
+		if (TempRecord.Hit)
+		{
+			HitAnything = true;
+			ClosestDistance = TempRecord.T;
+			ClosestRecord = TempRecord;
+			ClosestRecord.sphere = u_SceneSpheres[i];
+		}
+	}
+
+	return ClosestRecord;
+}
+
+float ConvertValueRange(float v, vec2 r1, vec2 r2)
+{
+	float ret = (((v - r1.x) * (r2.y - r2.x)) / (r1.y - r1.x)) + r2.x;
+	return ret;
+}
+
+float RandomFloat(vec2 st) 
+{
+    float res = fract(sin(dot(st.xy, vec2(12.9898,78.233))) * 43758.5453123);
+	return res + 0.0001f;
+}
+
+float RandomFloat(vec2 st, vec2 range)
+{
+	float v = RandomFloat(st);
+	return ConvertValueRange(v, vec2(0.0f, 1.0f), range);
+}
+
+bool PointIsInUnitSphere(vec3 p)
+{
+	return ((p.x * p.x) + (p.y * p.y) +  (p.z * p.z)) < 1.0f;
+}
+
+Ray GetRay(vec2 uv)
 {
 	Ray ray;
 	ray.Origin = u_CameraOrigin;
-	ray.Direction = u_CameraBottomLeft + (u_CameraHorizontal * v_TexCoords.x) + (u_CameraVertical * v_TexCoords.y) - u_CameraOrigin;
+	ray.Direction = u_CameraBottomLeft + (u_CameraHorizontal * uv.x) + (u_CameraVertical * uv.y) - u_CameraOrigin;
 	
-	RayHitRecord record;
-	record = RaySphereIntersectionTest(u_Sphere, ray, 0.0f, MAX_RAY_HIT_DISTANCE);
+	return ray;
+}
 
-	o_Color = mix(GetGradientColorAtRay(ray), record.Normal, float(record.Hit));
+vec3 GetRayColor(Ray ray)
+{
+	RayHitRecord record = IntersectSceneSpheres(ray, 0.0f, MAX_RAY_HIT_DISTANCE);
+
+	if (record.Hit)
+	{
+		return record.Normal;
+	}
+
+	else
+	{
+		return GetGradientColorAtRay(ray);
+	}
+}
+
+void main()
+{
+	Ray ray = GetRay(v_TexCoords);
+	o_Color = GetRayColor(ray);
 }

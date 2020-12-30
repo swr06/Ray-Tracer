@@ -23,7 +23,7 @@ using namespace RayTracer;
 const int g_Width = 1024;
 const int g_Height = 576;
 
-inline double RandomFloat()
+inline float RandomFloat()
 {
 	static std::uniform_real_distribution<float> distribution(0.0, 1.0);
 	static std::mt19937 generator;
@@ -106,6 +106,29 @@ public:
 
 };
 
+inline bool PointIsInSphere(const glm::vec3& point, float radius)
+{
+	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
+}
+
+inline glm::vec3 GeneratePointInUnitSphere()
+{
+	glm::vec3 ReturnVal;
+
+	ReturnVal.x = RandomFloat(-1.0f, 1.0f);
+	ReturnVal.y = RandomFloat(-1.0f, 1.0f);
+	ReturnVal.z = RandomFloat(-1.0f, 1.0f);
+
+	while (!PointIsInSphere(ReturnVal, 1.0f))
+	{
+		ReturnVal.x = RandomFloat(-1.0f, 1.0f);
+		ReturnVal.y = RandomFloat(-1.0f, 1.0f);
+		ReturnVal.z = RandomFloat(-1.0f, 1.0f);
+	}
+
+	return ReturnVal;
+}
+
 class Camera
 {
 public:
@@ -143,13 +166,43 @@ public:
 	float m_FOV;
 };
 
-struct Sphere
+enum class Material
 {
+	Invalid = -1,
+	Glass,
+	Diffuse,
+	Metal
+};
+
+class Sphere
+{
+public:
+
 	glm::vec3 Center;
-	float Radius;
 	glm::vec3 Color;
-	// TODO : int Material;
+	float Radius;
+	Material SphereMaterial;
 	float FuzzLevel;
+
+	Sphere(const glm::vec3& center, const glm::vec3& color, float radius, Material mat, float fuzz = 0.0f) :
+		Center(center),
+		Color(color),
+		Radius(radius),
+		SphereMaterial(mat),
+		FuzzLevel(fuzz)
+	{
+
+	}
+
+	Sphere() :
+		Center(glm::vec3(0.0f)),
+		Color(glm::vec3(0.0f)),
+		Radius(0.0f),
+		SphereMaterial(Material::Invalid),
+		FuzzLevel(0.0f)
+	{
+
+	}
 };
 
 RayTracerApp g_App;
@@ -158,12 +211,33 @@ Camera g_SceneCamera(glm::vec3(0.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
 	90.0f);
 
-void SetSphereUniform(const std::string& name, const Sphere& sphere, GLClasses::Shader& shader)
+std::vector<Sphere> SceneSpheres =
+{
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse, 0.65f),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse, 0.0f),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 0, 0), 100.0f, Material::Diffuse)
+};
+
+inline void SetSphereUniform(const std::string& name, const Sphere& sphere, GLClasses::Shader& shader)
 {
 	shader.SetVector3f(name + std::string(".Center"), sphere.Center, 0);
 	shader.SetVector3f(name + std::string(".Color"), sphere.Color, 0);
 	shader.SetFloat(name + std::string(".Radius"), sphere.Radius, 0);
 	shader.SetFloat(name + std::string(".FuzzLevel"), sphere.FuzzLevel, 0);
+}
+
+void SetSceneSphereUniforms(GLClasses::Shader& shader)
+{
+	const std::string name = "u_SceneSpheres";
+
+	shader.SetInteger("u_SceneSphereCount", SceneSpheres.size());
+
+	for (int i = 0 ; i < SceneSpheres.size() ; i++)
+	{
+		std::string uniform_name = name + "[" + std::to_string(i) + "]";
+		SetSphereUniform(uniform_name, SceneSpheres[i], shader);
+	}
 }
 
 int main()
@@ -174,7 +248,6 @@ int main()
 	GLClasses::VertexArray VAO;
 	GLClasses::Shader TraceShader;
 	unsigned long long CurrentFrame = 0;
-	Sphere sphere = { glm::vec3(0.0f, 0.0f, -1.0f), 0.5f, glm::vec3(0.0f), 0.0f };
 
 	float Vertices[] =
 	{
@@ -211,7 +284,7 @@ int main()
 		TraceShader.SetVector3f("u_CameraHorizontal", g_SceneCamera.m_Horizontal);
 		TraceShader.SetVector3f("u_CameraVertical", g_SceneCamera.m_Vertical);
 		TraceShader.SetVector3f("u_CameraOrigin", g_SceneCamera.m_Origin);
-		SetSphereUniform("u_Sphere", sphere, TraceShader);
+		SetSceneSphereUniforms(TraceShader);
 
 		VAO.Bind();
 		glDrawArrays(GL_TRIANGLES, 0, 6);
