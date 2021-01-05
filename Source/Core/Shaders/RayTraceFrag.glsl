@@ -2,7 +2,7 @@
 
 #define MAX_RAY_HIT_DISTANCE 100000.0f
 #define PI 3.14159265354f
-#define RAY_BOUNCE_LIMIT 50
+#define RAY_BOUNCE_LIMIT 5
 #define SAMPLES_PER_PIXEL 100
 #define MAX_SPHERES 5
 
@@ -71,7 +71,7 @@ vec3 GetGradientColorAtRay(Ray ray);
 
 // Utility
 
-int g_RNG_SEED = 0;
+int RNG_SEED = 0;
 
 vec3 lerp(vec3 v1, vec3 v2, float t)
 {
@@ -81,7 +81,8 @@ vec3 lerp(vec3 v1, vec3 v2, float t)
 int MIN = -2147483648;
 int MAX = 2147483647;
 
-int xorshift(in int value) {
+int xorshift(in int value) 
+{
     // Xorshift*32
     // Based on George Marsaglia's work: http://www.jstatsoft.org/v08/i14/paper
     value ^= value << 13;
@@ -90,19 +91,27 @@ int xorshift(in int value) {
     return value;
 }
 
-int nextInt(inout int seed) {
+int nextInt(inout int seed) 
+{
     seed = xorshift(seed);
     return seed;
 }
 
-float nextFloat(inout int seed) {
+float nextFloat(inout int seed) 
+{
     seed = xorshift(seed);
     // FIXME: This should have been a seed mapped from MIN..MAX to 0..1 instead
     return abs(fract(float(seed) / 3141.592653));
 }
 
-float nextFloat(inout int seed, in float max) {
+float nextFloat(inout int seed, in float max) 
+{
     return nextFloat(seed) * max;
+}
+
+float nextFloat(inout int seed, in float min, in float max) 
+{
+    return min + (max - min) * nextFloat(seed);
 }
 
 // ---- 
@@ -203,24 +212,58 @@ Ray GetRay(vec2 uv)
 
 vec3 GetRayColor(Ray ray)
 {
-	RayHitRecord record = IntersectSceneSpheres(ray, 0.0f, MAX_RAY_HIT_DISTANCE);
+	Ray new_ray = ray;
+	RayHitRecord ClosestSphere;
+	vec3 FinalColor = vec3(1.0f);
 
-	if (record.Hit)
+	bool IntersectionFound = false;
+	int hit_times = 0;
+
+	for (int i = 0; i < RAY_BOUNCE_LIMIT; i++)
 	{
-		return record.Normal;
+		ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+
+		if (ClosestSphere.Hit == true)
+		{
+			// Get the final ray direction
+
+			vec3 R;
+			R.x = nextFloat(RNG_SEED, -1.0f, 1.0f); 
+			R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
+			R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
+
+			vec3 S = normalize(ClosestSphere.Normal) + normalize(R);
+			S = normalize(S);
+
+			new_ray.Origin = ClosestSphere.Point;
+			new_ray.Direction = S;
+
+			hit_times += 1;
+			IntersectionFound = true;
+
+		}
+
+		else
+		{
+			FinalColor = GetGradientColorAtRay(new_ray);
+			break;
+		}
 	}
 
-	else
+	if (IntersectionFound)
 	{
-		return GetGradientColorAtRay(ray);
+		FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
+		FinalColor = FinalColor / float(hit_times);
 	}
+
+	return FinalColor;
 }
 
 void main()
 {
-	const int SPP = 50;
-	g_RNG_SEED = int(gl_FragCoord.x) * int(u_ViewportDimensions.x) + int(gl_FragCoord.y) * int(u_Time * u_Time * 1000);
-	
+	const int SPP = 20;
+	RNG_SEED = int(gl_FragCoord.x) + int(gl_FragCoord.y) * int(u_ViewportDimensions.x);
+
 	vec3 FinalColor = vec3(0.0f);
 	vec2 Pixel;
 
@@ -229,10 +272,8 @@ void main()
 
 	for (int s = 0 ; s < SPP ; s++)
 	{
-		int seed = g_RNG_SEED + s;
-
-		float u = (Pixel.x + nextFloat(seed)) / u_ViewportDimensions.x;
-		float v = (Pixel.y + nextFloat(seed)) / u_ViewportDimensions.y;
+		float u = (Pixel.x + nextFloat(RNG_SEED)) / u_ViewportDimensions.x;
+		float v = (Pixel.y + nextFloat(RNG_SEED)) / u_ViewportDimensions.y;
 
 		FinalColor += GetRayColor(GetRay(vec2(u, v)));
 	}
