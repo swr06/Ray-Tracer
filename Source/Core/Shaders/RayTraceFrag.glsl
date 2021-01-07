@@ -227,9 +227,16 @@ vec3 GetRayColor(Ray ray)
 	bool IntersectionFound = false;
 	int hit_times = 0;
 
+	SceneIntersectionTestResult ClosestSphere;
+
 	for (int i = 0; i < RAY_BOUNCE_LIMIT; i++)
 	{
-		SceneIntersectionTestResult ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+		ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+
+		if (i == 0) 
+		{
+			FinalColor = ClosestSphere.Record.sphere.Color;
+		} 
 
 		if (ClosestSphere.HitAnything == true)
 		{
@@ -246,7 +253,7 @@ vec3 GetRayColor(Ray ray)
 			new_ray.Direction = S;
 
 			IntersectionFound = true;
-			hit_times += 1;
+			hit_times++;
 		}
 
 		else
@@ -255,12 +262,11 @@ vec3 GetRayColor(Ray ray)
 		}
 	}
 
-	FinalColor = GetGradientColorAtRay(new_ray);
 
 	if (IntersectionFound)
 	{
 		FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
-		FinalColor = FinalColor / hit_times;
+		FinalColor = FinalColor / float(hit_times);
 		
 		return FinalColor;
 	}

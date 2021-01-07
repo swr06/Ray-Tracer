@@ -271,10 +271,10 @@ RayTracerApp g_App;
 
 std::vector<Sphere> SceneSpheres =
 {
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse, 0.65f),
-	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse, 0.0f),
-	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 0, 0), 100.0f, Material::Diffuse)
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(1, 0, 0), 0.5f, Material::Diffuse, 0.65f),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 1, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 1), 0.5f, Material::Diffuse, 0.0f),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0.5, 0, 0.5), 100.0f, Material::Diffuse)
 };
 
 inline void SetSphereUniform(const std::string& name, const Sphere& sphere, GLClasses::Shader& shader)
