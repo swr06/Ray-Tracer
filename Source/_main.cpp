@@ -68,6 +68,115 @@ void DisplayFrameRate(GLFWwindow* pWindow, const std::string& title)
 	}
 }
 
+// Camera
+
+class Camera
+{
+public:
+
+	Camera(const glm::vec3& origin, const glm::vec3& lookat, const glm::vec3& up,
+		float fov) : m_FOV(fov)
+	{
+		m_Origin = origin;
+		m_LookAt = lookat;
+		m_Up = up;
+		m_FOV = fov;
+
+		Update();
+	}
+
+	void Update()
+	{
+		float theta = glm::radians(m_FOV);
+		float H = glm::tan(theta / 2.0f);
+
+		m_ViewportHeight = 2.0f * H;
+		m_ViewportWidth = m_ViewportHeight * m_AspectRatio;
+
+		glm::vec3 w = glm::normalize(m_Origin - m_LookAt);
+		glm::vec3 u = glm::normalize(glm::cross(m_Up, w));
+		glm::vec3 v = glm::cross(w, u);
+
+		m_Horizontal = m_ViewportWidth * u;
+		m_Vertical = m_ViewportHeight * v;
+		m_BottomLeft = m_Origin - (m_Horizontal / 2.0f) - (m_Vertical / 2.0f) - w;
+	}
+
+	void UpdateOnMouseMovement(double xpos, double ypos)
+	{
+		if (FirstMove == true)
+		{
+			FirstMove = false;
+			m_PrevMx = xpos;
+			m_PrevMy = ypos;
+		}
+
+		float sensitivity = 0.2f;
+		ypos = -ypos;
+
+		float x_diff = xpos - m_PrevMx;
+		float y_diff = ypos - m_PrevMy;
+
+		x_diff = x_diff * sensitivity;
+		y_diff = y_diff * sensitivity;
+
+		m_PrevMx = xpos;
+		m_PrevMy = ypos;
+
+		m_Yaw = m_Yaw + x_diff;
+		m_Pitch = m_Pitch + y_diff;
+
+		if (m_Pitch > 89.0f)
+		{
+			m_Pitch = 89.0f;
+		}
+
+		if (m_Pitch < -89.0f)
+		{
+			m_Pitch = -89.0f;
+		}
+
+		glm::vec3 front;
+
+		front.x = cos(glm::radians(m_Pitch)) * cos(glm::radians(m_Yaw));
+		front.y = sin(glm::radians(m_Pitch));
+		front.z = cos(glm::radians(m_Pitch)) * sin(glm::radians(m_Yaw));
+
+		m_LookAt = front;
+	}
+
+	glm::vec3 GetRight() const noexcept
+	{
+		return glm::normalize(glm::cross(m_LookAt, m_Up));
+	}
+
+	glm::vec3 m_LookAt;
+	glm::vec3 m_Up;
+	float m_FOV;
+
+	glm::vec3 m_Origin = glm::vec3(0.0f);
+	const float m_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
+	const float m_FocalLength = 1.0f;
+
+	// Viewport stuff
+	float m_ViewportHeight;
+	float m_ViewportWidth;
+	glm::vec3 m_Horizontal;
+	glm::vec3 m_Vertical;
+	glm::vec3 m_BottomLeft;
+
+	float m_Yaw = 0.0f;
+	float m_Pitch = 0.0f;
+	double m_PrevMx = 0.0f;
+	double m_PrevMy = 0.0f;
+	bool FirstMove = true;
+};
+
+Camera g_SceneCamera(glm::vec3(0.0f),
+	glm::vec3(0.0f, 0.0f, -1.0f),
+	glm::vec3(0.0f, 1.0f, 0.0f),
+	90.0f);
+
 class RayTracerApp : public Application
 {
 public:
@@ -109,68 +218,14 @@ public:
 			_TraceShader->CreateShaderProgramFromFile(TraceShaderPaths.first, TraceShaderPaths.second);
 			_TraceShader->CompileShaders();
 		}
+
+		if (e.type == EventTypes::MouseMove)
+		{
+			g_SceneCamera.UpdateOnMouseMovement(e.mx, e.my);
+			g_SceneCamera.Update();
+		}
 	}
 
-};
-
-inline bool PointIsInSphere(const glm::vec3& point, float radius)
-{
-	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
-}
-
-inline glm::vec3 GeneratePointInUnitSphere()
-{
-	glm::vec3 ReturnVal;
-
-	ReturnVal.x = RandomFloat(-1.0f, 1.0f);
-	ReturnVal.y = RandomFloat(-1.0f, 1.0f);
-	ReturnVal.z = RandomFloat(-1.0f, 1.0f);
-
-	while (!PointIsInSphere(ReturnVal, 1.0f))
-	{
-		ReturnVal.x = RandomFloat(-1.0f, 1.0f);
-		ReturnVal.y = RandomFloat(-1.0f, 1.0f);
-		ReturnVal.z = RandomFloat(-1.0f, 1.0f);
-	}
-
-	return ReturnVal;
-}
-
-class Camera
-{
-public:
-
-	Camera(const glm::vec3& lookfrom, const glm::vec3& lookat, const glm::vec3& up,
-		float fov) : m_FOV(fov)
-	{
-		float theta = glm::radians(fov);
-		float H = glm::tan(theta / 2.0f);
-
-		m_ViewportHeight = 2.0f * H;
-		m_ViewportWidth = m_ViewportHeight * m_AspectRatio;
-
-		glm::vec3 w = glm::normalize(lookfrom - lookat);
-		glm::vec3 u = glm::normalize(glm::cross(up, w));
-		glm::vec3 v = glm::cross(w, u);
-
-		m_Origin = lookfrom;
-		m_Horizontal = m_ViewportWidth * u;
-		m_Vertical = m_ViewportHeight * v;
-		m_BottomLeft = m_Origin - (m_Horizontal / 2.0f) - (m_Vertical / 2.0f) - w;
-	}
-
-	glm::vec3 m_Origin = glm::vec3(0.0f);
-	const float m_AspectRatio = 16.0f / 9.0f; // Window aspect ratio. Easier to keep it as 16:9
-	const float m_FocalLength = 1.0f;
-
-	// Viewport stuff
-	float m_ViewportHeight;
-	float m_ViewportWidth;
-	glm::vec3 m_Horizontal;
-	glm::vec3 m_Vertical;
-	glm::vec3 m_BottomLeft;
-
-	float m_FOV;
 };
 
 enum class Material
@@ -213,10 +268,6 @@ public:
 };
 
 RayTracerApp g_App;
-Camera g_SceneCamera(glm::vec3(0.0f),
-	glm::vec3(0.0f, 0.0f, -1.0f),
-	glm::vec3(0.0f, 1.0f, 0.0f),
-	90.0f);
 
 std::vector<Sphere> SceneSpheres =
 {
@@ -250,6 +301,8 @@ void SetSceneSphereUniforms(GLClasses::Shader& shader)
 int main()
 {
 	g_App.Initialize();
+	g_App.SetCursorLocked(true);
+
 	_TraceShader = std::unique_ptr<GLClasses::Shader>(new GLClasses::Shader);
 	GLClasses::Shader& TraceShader = *_TraceShader;
 	
@@ -276,6 +329,12 @@ int main()
 
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
 	{
+		// Camera
+
+		GLFWwindow* window = g_App.GetWindow();
+
+		float speed = 0.05f;
+
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
 		glBindFramebuffer(GL_FRAMEBUFFER, 0);
@@ -303,6 +362,8 @@ int main()
 
 		CurrentFrame++;
 		DisplayFrameRate(g_App.GetWindow(), "Raytracer!");
+		
+		g_SceneCamera.Update();
 	}
 
 	return 0;
