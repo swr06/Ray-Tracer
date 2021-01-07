@@ -50,6 +50,12 @@ struct RayHitRecord
 	Sphere sphere;
 };
 
+struct SceneIntersectionTestResult
+{
+	RayHitRecord Record;
+	bool HitAnything;
+};
+
 // Uniforms
 uniform vec2 u_ViewportDimensions;
 uniform float u_Time;
@@ -141,11 +147,13 @@ RayHitRecord RaySphereIntersectionTest(const Sphere sphere, Ray ray, float tmin,
 
 	else
 	{
-		float root = (-B - sqrt(Discriminant)) / (2.0f * A); // T
+		float sq_root = sqrt(Discriminant);
+
+		float root = (-B - sq_root) / (2.0f * A); // T
 
 		if (root < tmin || root > tmax)
 		{
-			root = (-B + sqrt(Discriminant)) / (2.0f * A);
+			root = (-B + sq_root) / (2.0f * A);
 
 			if (root < tmin || root > tmax)
 			{
@@ -172,10 +180,10 @@ RayHitRecord RaySphereIntersectionTest(const Sphere sphere, Ray ray, float tmin,
 	}
 }
 
-RayHitRecord IntersectSceneSpheres(Ray ray, float tmin, float tmax)
+SceneIntersectionTestResult IntersectSceneSpheres(Ray ray, float tmin, float tmax)
 {
+	SceneIntersectionTestResult Result;
 	RayHitRecord TempRecord;
-	RayHitRecord ClosestRecord;
 	bool HitAnything = false;
 	float ClosestDistance = tmax;
 
@@ -187,13 +195,13 @@ RayHitRecord IntersectSceneSpheres(Ray ray, float tmin, float tmax)
 		{
 			HitAnything = true;
 			ClosestDistance = TempRecord.T;
-			ClosestRecord = TempRecord;
-			ClosestRecord.sphere = u_SceneSpheres[i];
+			Result.Record = TempRecord;
+			Result.Record.sphere = u_SceneSpheres[i];
 		}
 	}
 
-	ClosestRecord.Hit = HitAnything;
-	return ClosestRecord;
+	Result.HitAnything = HitAnything;
+	return Result;
 }
 
 float ConvertValueRange(float v, vec2 r1, vec2 r2)
@@ -221,9 +229,9 @@ vec3 GetRayColor(Ray ray)
 
 	for (int i = 0; i < RAY_BOUNCE_LIMIT; i++)
 	{
-		RayHitRecord ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+		SceneIntersectionTestResult ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
 
-		if (ClosestSphere.Hit == true)
+		if (ClosestSphere.HitAnything == true)
 		{
 			// Get the final ray direction
 
@@ -232,9 +240,9 @@ vec3 GetRayColor(Ray ray)
 			R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
 			R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
 
-			vec3 S = ClosestSphere.Normal + R;
+			vec3 S = ClosestSphere.Record.Normal + R;
 			
-			new_ray.Origin = ClosestSphere.Point;
+			new_ray.Origin = ClosestSphere.Record.Point;
 			new_ray.Direction = S;
 
 			IntersectionFound = true;
