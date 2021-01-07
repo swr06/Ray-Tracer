@@ -571,58 +571,49 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 	return HitAnything;
 }
 
-const int SPP = 100;
-const int RAY_DEPTH = 50;
+const int SPP = 20;
+const int RAY_DEPTH = 5;
 
 /* Non recursive and custom ray tracing model */
 
 RGB GetRayColor(const Ray& ray)
 {
-	int hit_times = RAY_DEPTH;
+	int hit_times = -1;
 
 	Ray new_ray = ray;
 	Sphere hit_sphere;
 
 	RayHitRecord ClosestSphere;
 	glm::vec3 FinalColor = glm::vec3(1.0f);
+	bool IntersectionFound = false;
 
 	for (int i = 0; i < RAY_DEPTH; i++)
 	{
+		hit_times++;
+
 		if (IntersectSceneSpheres(new_ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere))
 		{
-			if (hit_sphere.SphereMaterial == Material::Diffuse)
-			{
-				// Get the final ray direction
+			// Get the final ray direction
 
-				glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
-				new_ray.SetOrigin(ClosestSphere.Point);
-				new_ray.SetDirection(S);
+			glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
+			new_ray.SetOrigin(ClosestSphere.Point);
+			new_ray.SetDirection(S);
 
-				FinalColor = hit_sphere.Color;
-			}
+			IntersectionFound = true;
 		}
 
 		else
 		{
-			hit_times = i;
-			FinalColor = GetGradientColorAtRay(new_ray).ToVec3();
-
 			break;
 		}
 	}
 
-	if (hit_sphere.SphereMaterial == Material::Diffuse)
-	{
-		if (RAY_DEPTH - hit_times <= 0)
-		{
-			FinalColor = glm::vec3(0, 0, 0);
-		}
+	FinalColor = glm::vec3(0.0f, 0.0f, 255.0f);
 
-		else
-		{
-			FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
-			FinalColor = FinalColor / (float)hit_times;
-		}
+	if (IntersectionFound)
+	{
+		//FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
+		FinalColor = FinalColor / (float)hit_times;
 
 		return ToRGB(FinalColor);
 	}

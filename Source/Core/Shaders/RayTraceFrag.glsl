@@ -3,7 +3,7 @@
 #define MAX_RAY_HIT_DISTANCE 100000.0f
 #define PI 3.14159265354f
 #define RAY_BOUNCE_LIMIT 5
-#define SAMPLES_PER_PIXEL 100
+#define SAMPLES_PER_PIXEL 20
 #define MAX_SPHERES 5
 
 out vec3 o_Color;
@@ -192,6 +192,7 @@ RayHitRecord IntersectSceneSpheres(Ray ray, float tmin, float tmax)
 		}
 	}
 
+	ClosestRecord.Hit = HitAnything;
 	return ClosestRecord;
 }
 
@@ -213,7 +214,6 @@ Ray GetRay(vec2 uv)
 vec3 GetRayColor(Ray ray)
 {
 	Ray new_ray = ray;
-	RayHitRecord ClosestSphere;
 	vec3 FinalColor = vec3(1.0f);
 
 	bool IntersectionFound = false;
@@ -221,7 +221,7 @@ vec3 GetRayColor(Ray ray)
 
 	for (int i = 0; i < RAY_BOUNCE_LIMIT; i++)
 	{
-		ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+		RayHitRecord ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
 
 		if (ClosestSphere.Hit == true)
 		{
@@ -232,36 +232,36 @@ vec3 GetRayColor(Ray ray)
 			R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
 			R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
 
-			vec3 S = normalize(ClosestSphere.Normal) + normalize(R);
-			S = normalize(S);
-
+			vec3 S = ClosestSphere.Normal + R;
+			
 			new_ray.Origin = ClosestSphere.Point;
 			new_ray.Direction = S;
 
-			hit_times += 1;
 			IntersectionFound = true;
-
+			hit_times += 1;
 		}
 
 		else
 		{
-			FinalColor = GetGradientColorAtRay(new_ray);
 			break;
 		}
 	}
 
+	FinalColor = GetGradientColorAtRay(new_ray);
+
 	if (IntersectionFound)
 	{
 		FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
-		FinalColor = FinalColor / float(hit_times);
+		FinalColor = FinalColor / hit_times;
+		
+		return FinalColor;
 	}
 
-	return FinalColor;
+	return GetGradientColorAtRay(ray);
 }
 
 void main()
 {
-	const int SPP = 20;
 	RNG_SEED = int(gl_FragCoord.x) + int(gl_FragCoord.y) * int(u_ViewportDimensions.x);
 
 	vec3 FinalColor = vec3(0.0f);
@@ -270,7 +270,7 @@ void main()
 	Pixel.x = v_TexCoords.x * u_ViewportDimensions.x;
 	Pixel.y = v_TexCoords.y * u_ViewportDimensions.y;
 
-	for (int s = 0 ; s < SPP ; s++)
+	for (int s = 0 ; s < SAMPLES_PER_PIXEL ; s++)
 	{
 		float u = (Pixel.x + nextFloat(RNG_SEED)) / u_ViewportDimensions.x;
 		float v = (Pixel.y + nextFloat(RNG_SEED)) / u_ViewportDimensions.y;
@@ -278,7 +278,6 @@ void main()
 		FinalColor += GetRayColor(GetRay(vec2(u, v)));
 	}
 
-	FinalColor = FinalColor / float(SPP);
-
+	FinalColor = FinalColor / float(SAMPLES_PER_PIXEL);
 	o_Color = FinalColor;
 }
