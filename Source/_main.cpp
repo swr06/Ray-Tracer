@@ -17,6 +17,7 @@
 #include "Core/VertexBuffer.h"
 #include "Core/VertexArray.h"
 #include "Core/Shader.h"
+#include "Core/CubeTextureMap.h"
 
 using namespace RayTracer;
 
@@ -301,6 +302,16 @@ void SetSceneSphereUniforms(GLClasses::Shader& shader)
 
 int main()
 {
+	std::vector<std::string> paths = 
+	{
+		"Res/right.bmp",
+		"Res/left.bmp",
+		"Res/top.bmp",
+		"Res/bottom.bmp",
+		"Res/front.bmp",
+		"Res/back.bmp"
+	};
+
 	g_App.Initialize();
 	g_App.SetCursorLocked(true);
 
@@ -309,6 +320,10 @@ int main()
 	
 	GLClasses::VertexBuffer VBO;
 	GLClasses::VertexArray VAO;
+	GLClasses::CubeTextureMap SKYBOX;
+
+	SKYBOX.CreateCubeTextureMap(paths, false);
+
 	unsigned long long CurrentFrame = 0;
 
 	float Vertices[] =
@@ -353,6 +368,11 @@ int main()
 		TraceShader.SetVector3f("u_CameraHorizontal", g_SceneCamera.m_Horizontal);
 		TraceShader.SetVector3f("u_CameraVertical", g_SceneCamera.m_Vertical);
 		TraceShader.SetVector3f("u_CameraOrigin", g_SceneCamera.m_Origin);
+		TraceShader.SetInteger("u_Skybox", 0);
+
+		glActiveTexture(0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, SKYBOX.GetID());
+
 		SetSceneSphereUniforms(TraceShader);
 
 		VAO.Bind();

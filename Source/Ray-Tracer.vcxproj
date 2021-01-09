@@ -150,9 +150,11 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Core\Application.cpp" />
+    <ClCompile Include="Core\CubeTextureMap.cpp" />
     <ClCompile Include="Core\IndexBuffer.cpp" />
     <ClCompile Include="Core\Random.cpp" />
     <ClCompile Include="Core\Shader.cpp" />
+    <ClCompile Include="Core\stb_image.cpp" />
     <ClCompile Include="Core\VertexArray.cpp" />
     <ClCompile Include="Core\VertexBuffer.cpp" />
     <ClCompile Include="Dependencies\glad\src\glad.c" />
@@ -173,9 +175,11 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\Application.h" />
+    <ClInclude Include="Core\CubeTextureMap.h" />
     <ClInclude Include="Core\IndexBuffer.h" />
     <ClInclude Include="Core\Random.h" />
     <ClInclude Include="Core\Shader.h" />
+    <ClInclude Include="Core\stb_image.h" />
     <ClInclude Include="Core\VertexArray.h" />
     <ClInclude Include="Core\VertexBuffer.h" />
     <ClInclude Include="Dependencies\imgui\imconfig.h" />

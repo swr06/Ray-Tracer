@@ -13,6 +13,7 @@
 out vec3 o_Color;
 
 in vec2 v_TexCoords;
+uniform samplerCube u_Skybox;
 
 // Structures
 
@@ -148,9 +149,11 @@ bool PointIsInSphere(vec3 point, float radius)
 
 vec3 GetGradientColorAtRay(Ray ray)
 {
-	vec3 v = lerp(vec3(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f),
-			vec3(128.0f / 255.0f, 178.0f / 255.0f, 255.0f / 255.0f), ray.Direction.y * 1.25f);
-	return v;
+	//vec3 v = lerp(vec3(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f),
+	//		vec3(128.0f / 255.0f, 178.0f / 255.0f, 255.0f / 255.0f), ray.Direction.y * 1.25f);
+	//return v;
+
+	return texture(u_Skybox, ray.Direction).rgb;
 }
 
 RayHitRecord RaySphereIntersectionTest(const Sphere sphere, Ray ray, float tmin, float tmax)
@@ -250,7 +253,7 @@ vec3 GetRayColor(Ray ray)
 	Sphere first_sphere;
 
 	RayHitRecord ClosestSphere;
-	vec3 FinalColor = GetGradientColorAtRay(new_ray);
+	vec3 FinalColor = vec3(0.0f);
 
 	int diffuse_hit_count = 0 ;
 
@@ -307,6 +310,11 @@ vec3 GetRayColor(Ray ray)
 		}
 
 		diffuse_hit_count++;
+	}
+
+	if (FinalColor == vec3(0.0f))
+	{
+		FinalColor = GetGradientColorAtRay(new_ray);
 	}
 
 	if (first_sphere.Material == MATERIAL_DIFFUSE)

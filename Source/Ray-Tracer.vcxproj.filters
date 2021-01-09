@@ -74,6 +74,12 @@
     <ClCompile Include="_main.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="Core\CubeTextureMap.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
+    <ClCompile Include="Core\stb_image.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -116,6 +122,12 @@
       <Filter>Source Files\GL Classes</Filter>
     </ClInclude>
     <ClInclude Include="Core\VertexBuffer.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\CubeTextureMap.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
+    <ClInclude Include="Core\stb_image.h">
       <Filter>Source Files\GL Classes</Filter>
     </ClInclude>
   </ItemGroup>
