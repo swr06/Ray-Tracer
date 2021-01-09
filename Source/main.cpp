@@ -542,10 +542,10 @@ inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, floa
 
 std::vector<Sphere> Spheres =
 {
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse, 0.65f),
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Metal, 0.65f),
 	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse, 0.0f),
-	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 0, 0), 100.0f, Material::Diffuse)
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Metal, 0.0f),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0, 255, 255), 100.0f, Material::Diffuse)
 };
 
 bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec, Sphere& sphere)
@@ -578,20 +578,31 @@ const int RAY_DEPTH = 5;
 
 RGB GetRayColor(const Ray& ray)
 {
-	int hit_times = -1;
-
 	Ray new_ray = ray;
 	Sphere hit_sphere;
+	Sphere first_sphere;
 
 	RayHitRecord ClosestSphere;
-	glm::vec3 FinalColor = glm::vec3(1.0f);
-	bool IntersectionFound = false;
+	glm::vec3 FinalColor = GetGradientColorAtRay(new_ray).ToVec3();
+
+	int diffuse_hit_count = 0 ;
 
 	for (int i = 0; i < RAY_DEPTH; i++)
 	{
-		hit_times++;
+		if (IntersectSceneSpheres(new_ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere)) 
+		{
+			if (i == 0)
+			{
+				first_sphere = hit_sphere;
+			}
+		}
 
-		if (IntersectSceneSpheres(new_ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere))
+		else
+		{
+			break;
+		}
+
+		if (hit_sphere.SphereMaterial == Material::Diffuse)
 		{
 			// Get the final ray direction
 
@@ -599,26 +610,36 @@ RGB GetRayColor(const Ray& ray)
 			new_ray.SetOrigin(ClosestSphere.Point);
 			new_ray.SetDirection(S);
 
-			IntersectionFound = true;
+			FinalColor = hit_sphere.Color;
+			FinalColor /= 2.0f;
+			FinalColor = FinalColor / (float)(diffuse_hit_count + 1);
+
+			diffuse_hit_count++;
 		}
 
-		else
+		if (hit_sphere.SphereMaterial == Material::Metal)
 		{
-			break;
+			glm::vec3 ReflectedRayDirection = glm::reflect(ray.GetDirection(), ClosestSphere.Normal);
+			//ReflectedRayDirection += hit_sphere.FuzzLevel * GeneratePointInUnitSphere();
+			
+			new_ray.SetOrigin(ClosestSphere.Point);
+			new_ray.SetDirection(ReflectedRayDirection);
 		}
 	}
 
-	FinalColor = glm::vec3(0.0f, 0.0f, 255.0f);
-
-	if (IntersectionFound)
+	if (first_sphere.SphereMaterial == Material::Diffuse)
 	{
-		//FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
-		FinalColor = FinalColor / (float)hit_times;
-
-		return ToRGB(FinalColor);
+		FinalColor = first_sphere.Color;
+		FinalColor /= 2.0f;
+		FinalColor = FinalColor / (float)(diffuse_hit_count + 1);
 	}
 
-	return GetGradientColorAtRay(new_ray);
+	else if (first_sphere.SphereMaterial == Material::Metal)
+	{
+		FinalColor = glm::vec3(0.8f) * FinalColor;
+	}
+
+	return ToRGB(FinalColor);
 }
 
 /*Camera g_SceneCamera(glm::vec3(-2.0f, 2.0f, 1.0f),

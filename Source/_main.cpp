@@ -228,7 +228,7 @@ public:
 
 };
 
-enum class Material
+enum class Material : int
 {
 	Invalid = -1,
 	Glass,
@@ -271,10 +271,10 @@ RayTracerApp g_App;
 
 std::vector<Sphere> SceneSpheres =
 {
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(1, 0, 0), 0.5f, Material::Diffuse, 0.65f),
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(1, 0, 0), 0.5f, Material::Metal, 0.65f),
 	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 1, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 1), 0.5f, Material::Diffuse, 0.0f),
-	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0.5, 0, 0.5), 100.0f, Material::Diffuse)
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 1), 0.5f, Material::Metal, 0.0f),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0, 1, 0), 100.0f, Material::Diffuse)
 };
 
 inline void SetSphereUniform(const std::string& name, const Sphere& sphere, GLClasses::Shader& shader)
@@ -283,6 +283,7 @@ inline void SetSphereUniform(const std::string& name, const Sphere& sphere, GLCl
 	shader.SetVector3f(name + std::string(".Color"), sphere.Color, 0);
 	shader.SetFloat(name + std::string(".Radius"), sphere.Radius, 0);
 	shader.SetFloat(name + std::string(".FuzzLevel"), sphere.FuzzLevel, 0);
+	shader.SetInteger(name + std::string(".Material"), static_cast<int>(sphere.SphereMaterial), 0);
 }
 
 void SetSceneSphereUniforms(GLClasses::Shader& shader)

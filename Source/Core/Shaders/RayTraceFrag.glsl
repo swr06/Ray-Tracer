@@ -2,7 +2,7 @@
 
 #define MAX_RAY_HIT_DISTANCE 100000.0f
 #define PI 3.14159265354f
-#define RAY_BOUNCE_LIMIT 5
+#define RAY_BOUNCE_LIMIT 4
 #define SAMPLES_PER_PIXEL 20
 #define MAX_SPHERES 5
 
@@ -25,9 +25,9 @@ vec3 Ray_GetAt(Ray ray, float scale)
 }
 
 // "Enums"
-const uint MATERIAL_METAL = 0x00000001u;
-const uint MATERIAL_DIFFUSE = 0x00000002u;
-const uint MATERIAL_INVALID = 0x00000004u;
+const int MATERIAL_INVALID = -1;
+const int MATERIAL_DIFFUSE = 1;
+const int MATERIAL_METAL = 2;
 
 // Sphere
 struct Sphere
@@ -35,7 +35,7 @@ struct Sphere
 	vec3 Center;
 	vec3 Color;
 	float Radius;
-	uint Material;
+	int Material;
 	float FuzzLevel;
 };
 
@@ -120,7 +120,23 @@ float nextFloat(inout int seed, in float min, in float max)
     return min + (max - min) * nextFloat(seed);
 }
 
-// ---- 
+vec3 cosWeightedRandomHemisphereDirection(const vec3 n) 
+{
+  	vec2 r = vec2(nextFloat(RNG_SEED), nextFloat(RNG_SEED));
+    
+	vec3  uu = normalize( cross( n, vec3(0.0,1.0,1.0) ) );
+	vec3  vv = cross( uu, n );
+	
+	float ra = sqrt(r.y);
+	float rx = ra*cos(6.2831*r.x); 
+	float ry = ra*sin(6.2831*r.x);
+	float rz = sqrt( 1.0-r.y );
+	vec3  rr = vec3( rx*uu + ry*vv + rz*n );
+    
+    return normalize( rr );
+}
+
+// ----------------------------------------
 
 vec3 GetGradientColorAtRay(Ray ray)
 {
@@ -222,56 +238,78 @@ Ray GetRay(vec2 uv)
 vec3 GetRayColor(Ray ray)
 {
 	Ray new_ray = ray;
-	vec3 FinalColor = vec3(1.0f);
+	Sphere hit_sphere;
+	Sphere first_sphere;
 
-	bool IntersectionFound = false;
-	int hit_times = 0;
+	RayHitRecord ClosestSphere;
+	vec3 FinalColor = GetGradientColorAtRay(new_ray);
 
-	SceneIntersectionTestResult ClosestSphere;
+	int diffuse_hit_count = 0 ;
 
-	for (int i = 0; i < RAY_BOUNCE_LIMIT; i++)
+	for (int i = 0; i < RAY_BOUNCE_LIMIT ; i++)
 	{
-		ClosestSphere = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+		SceneIntersectionTestResult Result = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+		hit_sphere = Result.Record.sphere;
+		ClosestSphere = Result.Record;
 
-		if (i == 0) 
+		if (Result.HitAnything) 
 		{
-			FinalColor = ClosestSphere.Record.sphere.Color;
-		} 
-
-		if (ClosestSphere.HitAnything == true)
-		{
-			// Get the final ray direction
-
-			vec3 R;
-			R.x = nextFloat(RNG_SEED, -1.0f, 1.0f); 
-			R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
-			R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
-
-			vec3 S = ClosestSphere.Record.Normal + R;
-			
-			new_ray.Origin = ClosestSphere.Record.Point;
-			new_ray.Direction = S;
-
-			IntersectionFound = true;
-			hit_times++;
+			if (i == 0)
+			{
+				first_sphere = hit_sphere;
+			}
 		}
 
 		else
 		{
 			break;
 		}
+
+		if (hit_sphere.Material == MATERIAL_DIFFUSE)
+		{
+			// Get the final ray direction
+
+			vec3 R;
+			R.x = nextFloat(RNG_SEED, -1.0f, 1.0f);
+			R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
+			R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
+
+			//vec3 R = cosWeightedRandomHemisphereDirection(ClosestSphere.Normal);
+
+			vec3 S = ClosestSphere.Normal + R;
+			new_ray.Origin = ClosestSphere.Point;
+			new_ray.Direction = normalize(S);
+
+			FinalColor = hit_sphere.Color;
+			FinalColor /= 2.0f;
+			FinalColor = FinalColor / float(diffuse_hit_count + 1);
+
+			diffuse_hit_count++;
+		}
+
+		if (hit_sphere.Material == MATERIAL_METAL)
+		{
+			vec3 ReflectedRayDirection = reflect(ray.Direction, ClosestSphere.Normal);
+			//ReflectedRayDirection += hit_sphere.FuzzLevel * GeneratePointInUnitSphere();
+			
+			new_ray.Origin = ClosestSphere.Point;
+			new_ray.Direction = ReflectedRayDirection;
+		}
 	}
 
-
-	if (IntersectionFound)
+	if (first_sphere.Material == MATERIAL_DIFFUSE)
 	{
-		FinalColor /= 2.0f; // Lambertian diffuse only absorbs half the light
-		FinalColor = FinalColor / float(hit_times);
-		
-		return FinalColor;
+		FinalColor = first_sphere.Color;
+		FinalColor /= 2.0f;
+		FinalColor = FinalColor / float(diffuse_hit_count + 1);
 	}
 
-	return GetGradientColorAtRay(ray);
+	else if (first_sphere.Material == MATERIAL_METAL)
+	{
+		FinalColor = vec3(0.8f) * FinalColor;
+	}
+
+	return FinalColor;
 }
 
 void main()
