@@ -1,7 +1,7 @@
 #version 330 core
 
 // Compile time flags
-//#define USE_HEMISPHERICAL_DIFFUSE_SCATTERING
+#define USE_HEMISPHERICAL_DIFFUSE_SCATTERING
 //#define ANIMATE_NOISE
 
 #define MAX_RAY_HIT_DISTANCE 100000.0f
@@ -318,7 +318,7 @@ vec3 GetRayColor(Ray ray)
 
 	else if (first_sphere.Material == MATERIAL_METAL)
 	{
-		FinalColor = vec3(0.8f) * FinalColor;
+		FinalColor = FinalColor * first_sphere.Color;
 	}
 
 	return FinalColor;
