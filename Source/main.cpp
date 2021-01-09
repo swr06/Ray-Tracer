@@ -613,8 +613,6 @@ RGB GetRayColor(const Ray& ray)
 			FinalColor = hit_sphere.Color;
 			FinalColor /= 2.0f;
 			FinalColor = FinalColor / (float)(diffuse_hit_count + 1);
-
-			diffuse_hit_count++;
 		}
 
 		if (hit_sphere.SphereMaterial == Material::Metal)
@@ -625,6 +623,8 @@ RGB GetRayColor(const Ray& ray)
 			new_ray.SetOrigin(ClosestSphere.Point);
 			new_ray.SetDirection(ReflectedRayDirection);
 		}
+
+		diffuse_hit_count++;
 	}
 
 	if (first_sphere.SphereMaterial == Material::Diffuse)

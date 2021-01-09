@@ -271,7 +271,7 @@ RayTracerApp g_App;
 
 std::vector<Sphere> SceneSpheres =
 {
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(1, 0, 0), 0.5f, Material::Metal, 0.65f),
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(1, 0, 0), 0.5f, Material::Metal, 0.2f),
 	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 1, 0), 0.5f, Material::Diffuse),
 	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 1), 0.5f, Material::Metal, 0.0f),
 	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0, 1, 0), 100.0f, Material::Diffuse)

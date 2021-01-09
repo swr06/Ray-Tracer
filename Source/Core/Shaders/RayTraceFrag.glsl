@@ -1,5 +1,9 @@
 #version 330 core
 
+// Compile time flags
+//#define USE_HEMISPHERICAL_DIFFUSE_SCATTERING
+//#define ANIMATE_NOISE
+
 #define MAX_RAY_HIT_DISTANCE 100000.0f
 #define PI 3.14159265354f
 #define RAY_BOUNCE_LIMIT 4
@@ -124,16 +128,20 @@ vec3 cosWeightedRandomHemisphereDirection(const vec3 n)
 {
   	vec2 r = vec2(nextFloat(RNG_SEED), nextFloat(RNG_SEED));
     
-	vec3  uu = normalize( cross( n, vec3(0.0,1.0,1.0) ) );
-	vec3  vv = cross( uu, n );
-	
+	vec3  uu = normalize(cross(n, vec3(0.0,1.0,1.0)));
+	vec3  vv = cross(uu, n);
 	float ra = sqrt(r.y);
-	float rx = ra*cos(6.2831*r.x); 
-	float ry = ra*sin(6.2831*r.x);
-	float rz = sqrt( 1.0-r.y );
-	vec3  rr = vec3( rx*uu + ry*vv + rz*n );
+	float rx = ra * cos(6.2831 * r.x); 
+	float ry = ra * sin(6.2831 * r.x);
+	float rz = sqrt(1.0 - r.y);
+	vec3  rr = vec3(rx * uu + ry * vv + rz * n );
     
-    return normalize( rr );
+    return normalize(rr);
+}
+
+bool PointIsInSphere(vec3 point, float radius)
+{
+	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
 }
 
 // ----------------------------------------
@@ -269,12 +277,14 @@ vec3 GetRayColor(Ray ray)
 		{
 			// Get the final ray direction
 
-			vec3 R;
-			R.x = nextFloat(RNG_SEED, -1.0f, 1.0f);
-			R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
-			R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
-
-			//vec3 R = cosWeightedRandomHemisphereDirection(ClosestSphere.Normal);
+			#ifdef USE_HEMISPHERICAL_DIFFUSE_SCATTERING
+				vec3 R = cosWeightedRandomHemisphereDirection(ClosestSphere.Normal);
+			#else
+				vec3 R;
+				R.x = nextFloat(RNG_SEED, -1.0f, 1.0f);
+				R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
+				R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
+			#endif
 
 			vec3 S = ClosestSphere.Normal + R;
 			new_ray.Origin = ClosestSphere.Point;
@@ -283,18 +293,20 @@ vec3 GetRayColor(Ray ray)
 			FinalColor = hit_sphere.Color;
 			FinalColor /= 2.0f;
 			FinalColor = FinalColor / float(diffuse_hit_count + 1);
-
-			diffuse_hit_count++;
 		}
 
 		if (hit_sphere.Material == MATERIAL_METAL)
 		{
+			vec3 R = cosWeightedRandomHemisphereDirection(ClosestSphere.Normal);
+
 			vec3 ReflectedRayDirection = reflect(ray.Direction, ClosestSphere.Normal);
-			//ReflectedRayDirection += hit_sphere.FuzzLevel * GeneratePointInUnitSphere();
+			ReflectedRayDirection += first_sphere.FuzzLevel * R;
 			
 			new_ray.Origin = ClosestSphere.Point;
 			new_ray.Direction = ReflectedRayDirection;
 		}
+
+		diffuse_hit_count++;
 	}
 
 	if (first_sphere.Material == MATERIAL_DIFFUSE)
@@ -314,7 +326,11 @@ vec3 GetRayColor(Ray ray)
 
 void main()
 {
-	RNG_SEED = int(gl_FragCoord.x) + int(gl_FragCoord.y) * int(u_ViewportDimensions.x);
+	#ifdef ANIMATE_NOISE
+		RNG_SEED = int(gl_FragCoord.x) + int(gl_FragCoord.y) * int(u_ViewportDimensions.x) * int(u_Time * 1000);
+	#else
+		RNG_SEED = int(gl_FragCoord.x) + int(gl_FragCoord.y) * int(u_ViewportDimensions.x);
+	#endif
 
 	vec3 FinalColor = vec3(0.0f);
 	vec2 Pixel;
