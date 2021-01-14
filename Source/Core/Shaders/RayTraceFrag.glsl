@@ -6,7 +6,7 @@
 
 #define MAX_RAY_HIT_DISTANCE 100000.0f
 #define PI 3.14159265354f
-#define RAY_BOUNCE_LIMIT 4
+#define RAY_BOUNCE_LIMIT 3
 #define SAMPLES_PER_PIXEL 20
 #define MAX_SPHERES 5
 
@@ -164,26 +164,31 @@ vec3 RandomPointInUnitSphere()
 	return vec3(x, y, z);
 }
 
-vec3 __RandomPointInUnitSphere()
+bool PointIsInSphere(vec3 point, float radius)
+{
+	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
+}
+
+vec3 RandomPointInUnitSphereRejective()
 {
 	float x, y, z;
 
-	while (true)
+	for (int i = 0 ; i < 20 ; i++)
 	{
 		x = nextFloat(RNG_SEED, -1.0f, 1.0f);
 		y = nextFloat(RNG_SEED, -1.0f, 1.0f);
 		z = nextFloat(RNG_SEED, -1.0f, 1.0f);
 
-	    if (sqrt((x * x) + (y * y) + (z * z)) < 1 ) break;
-	} 
+		if (PointIsInSphere(vec3(x, y, z), 1.0f))
+		{
+			return vec3(x, y, z);
+		}
+	}
 
 	return vec3(x, y, z);
 }
 
-bool PointIsInSphere(vec3 point, float radius)
-{
-	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
-}
+
 
 // ----------------------------------------
 
@@ -307,7 +312,7 @@ vec3 GetRayColor(Ray ray)
 		{
 			if (hit_sphere.Material == MATERIAL_DIFFUSE)
 			{
-				vec3 S = closest_record.Normal + RandomPointInUnitSphere();
+				vec3 S = closest_record.Normal + RandomPointInUnitSphereRejective();
 				new_ray.Origin = closest_record.Point;
 				new_ray.Direction = S;
 				new_ray.Reflected = false;
