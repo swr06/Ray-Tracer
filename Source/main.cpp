@@ -355,6 +355,8 @@ public:
 		return m_Origin + (m_Direction * glm::vec3(scale));
 	}
 
+	bool reflected = false;
+
 private:
 
 	glm::vec3 m_Origin;
@@ -530,7 +532,7 @@ inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, floa
 std::vector<Sphere> Spheres = 
 { 
 	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse, 0.5f),
-	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0.8f), 0.5f, Material::Metal),
 	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse, 0.0f),
 	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0, 255, 0), 100.0f, Material::Diffuse)
 };
@@ -564,27 +566,62 @@ RGB GetRayColor(const Ray& ray, int ray_depth)
 	RayHitRecord closest_record;
 
 	Ray new_ray = ray;
-	glm::vec3 total_color = GetGradientColorAtRay(ray).ToVec3();
+	glm::vec3 total_color = glm::vec3(1.0f);
 	int hit_count = 0;
-	std::vector<glm::vec3> diffuse_colors;
+	std::array<glm::vec3, 12> diffuse_colors;
+	int current_color = 0;
 
-	while (hit_count < 6)
+	while (hit_count < 10)
 	{
 		if (IntersectSceneSpheres(new_ray, 0.001f, _INFINITY, closest_record, hit_sphere))
 		{
-			glm::vec3 S = closest_record.Normal + GeneratePointInUnitSphere();
-			new_ray = Ray(closest_record.Point, S);
+			if (hit_sphere.SphereMaterial == Material::Diffuse)
+			{
+				glm::vec3 S = closest_record.Normal + GeneratePointInUnitSphere();
+				new_ray = Ray(closest_record.Point, S);
+				new_ray.reflected = false;
 
-			glm::vec3 Color = hit_sphere.Color;
+				glm::vec3 Color = hit_sphere.Color;
+				glm::vec3 TotalColorUntilNow = glm::vec3(1.0);
+
+				for (int i = 0; i < current_color; i++)
+				{
+					TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
+				}
+
+				total_color = (Color) * TotalColorUntilNow;
+				diffuse_colors[current_color] = Color;
+				current_color++;
+			}
+
+			else if (hit_sphere.SphereMaterial == Material::Metal)
+			{
+				glm::vec3 ReflectedRayDirection = glm::reflect(new_ray.GetDirection(), closest_record.Normal);
+				new_ray = Ray(closest_record.Point, ReflectedRayDirection);
+				new_ray.reflected = true;
+
+				glm::vec3 TotalColorUntilNow = glm::vec3(1.0);
+
+				for (int i = 0; i < current_color; i++)
+				{
+					TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
+				}
+
+				total_color = hit_sphere.Color * TotalColorUntilNow;
+			}
+		}
+
+		else if (new_ray.reflected)
+		{
 			glm::vec3 TotalColorUntilNow = glm::vec3(1.0);
 
-			for (int i = 0; i < diffuse_colors.size(); i++)
+			for (int i = 0; i < current_color; i++)
 			{
 				TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
 			}
 
-			total_color = (Color * 0.5f) * TotalColorUntilNow;
-			diffuse_colors.push_back(Color);
+			new_ray.reflected = false;
+			total_color = TotalColorUntilNow * GetGradientColorAtRay(new_ray).ToVec3();
 		}
 
 		hit_count++;
@@ -603,7 +640,7 @@ Camera g_SceneCamera(glm::vec3(0.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
 	90.0f);
 
-const int SPP = 20;
+const int SPP = 100;
 const int RAY_DEPTH = 5;
 
 void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
