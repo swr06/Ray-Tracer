@@ -5,7 +5,7 @@
 #include <string>
 #include <thread>
 #include <vector>
-#include <chrono>
+#include <chrono> 
 #include <memory>
 
 #include <glad/glad.h>          
@@ -345,6 +345,8 @@ int main()
 
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
 	{
+		glfwSwapInterval(0);
+
 		// Camera
 
 		GLFWwindow* window = g_App.GetWindow();

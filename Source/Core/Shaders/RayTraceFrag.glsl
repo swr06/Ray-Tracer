@@ -22,6 +22,7 @@ struct Ray
 {
 	vec3 Origin;
 	vec3 Direction;
+	bool Reflected; // Whether the ray was reflected off a metal surface or not
 };
 
 vec3 Ray_GetAt(Ray ray, float scale)
@@ -140,6 +141,45 @@ vec3 cosWeightedRandomHemisphereDirection(const vec3 n)
     return normalize(rr);
 }
 
+vec3 RandomPoint()
+{
+	vec3 ret;
+	ret.x = nextFloat(RNG_SEED, -1.0f, 1.0f);
+	ret.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
+	ret.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
+
+	return ret;
+}
+
+vec3 RandomPointInUnitSphere()
+{
+	float theta = nextFloat(RNG_SEED, 0.0f, 2.0f * PI);
+	float v = nextFloat(RNG_SEED, 0.0f, 1.0f);
+	float phi = acos((2.0f * v) - 1.0f);
+	float r = pow(nextFloat(RNG_SEED, 0.0f, 1.0f), 1.0f / 3.0f);
+	float x = r * sin(phi) * cos(theta);
+	float y = r * sin(phi) * sin(theta);
+	float z = r * cos(phi); 
+
+	return vec3(x, y, z);
+}
+
+vec3 __RandomPointInUnitSphere()
+{
+	float x, y, z;
+
+	while (true)
+	{
+		x = nextFloat(RNG_SEED, -1.0f, 1.0f);
+		y = nextFloat(RNG_SEED, -1.0f, 1.0f);
+		z = nextFloat(RNG_SEED, -1.0f, 1.0f);
+
+	    if (sqrt((x * x) + (y * y) + (z * z)) < 1 ) break;
+	} 
+
+	return vec3(x, y, z);
+}
+
 bool PointIsInSphere(vec3 point, float radius)
 {
 	return ((point.x * point.x) + (point.y * point.y) + (point.z * point.z)) < (radius * radius);
@@ -248,88 +288,80 @@ Ray GetRay(vec2 uv)
 
 vec3 GetRayColor(Ray ray)
 {
-	Ray new_ray = ray;
 	Sphere hit_sphere;
-	Sphere first_sphere;
+	RayHitRecord closest_record;
 
-	RayHitRecord ClosestSphere;
-	vec3 FinalColor = vec3(0.0f);
+	Ray new_ray = ray;
+	vec3 total_color = GetGradientColorAtRay(ray);
+	int hit_count = 0;
+	vec3 diffuse_colors[RAY_BOUNCE_LIMIT + 2];
+	int current_color = 0;
 
-	int diffuse_hit_count = 0 ;
-
-	for (int i = 0; i < RAY_BOUNCE_LIMIT ; i++)
+	while (hit_count < RAY_BOUNCE_LIMIT)
 	{
-		SceneIntersectionTestResult Result = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
-		hit_sphere = Result.Record.sphere;
-		ClosestSphere = Result.Record;
+		SceneIntersectionTestResult res = IntersectSceneSpheres(new_ray, 0.001f, MAX_RAY_HIT_DISTANCE);
+		hit_sphere = res.Record.sphere;
+		closest_record = res.Record;
 
-		if (Result.HitAnything) 
+		if (res.HitAnything)
 		{
-			if (i == 0)
+			if (hit_sphere.Material == MATERIAL_DIFFUSE)
 			{
-				first_sphere = hit_sphere;
+				vec3 S = closest_record.Normal + RandomPointInUnitSphere();
+				new_ray.Origin = closest_record.Point;
+				new_ray.Direction = S;
+				new_ray.Reflected = false;
+
+				vec3 Color = hit_sphere.Color;
+				vec3 TotalColorUntilNow = vec3(1.0);
+
+				for (int i = 0; i < current_color; i++)
+				{
+					TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
+				}
+
+				total_color = (Color) * TotalColorUntilNow;
+				diffuse_colors[current_color] = Color;
+				current_color++;
+			}
+
+			else if (hit_sphere.Material == MATERIAL_METAL)
+			{
+				vec3 ReflectedRayDirection = reflect(new_ray.Direction, closest_record.Normal);
+				ReflectedRayDirection += hit_sphere.FuzzLevel * RandomPointInUnitSphere();
+
+				new_ray.Origin = closest_record.Point;
+				new_ray.Direction = ReflectedRayDirection;
+				new_ray.Reflected = true;
+
+				vec3 TotalColorUntilNow = vec3(1.0);
+
+				for (int i = 0; i < current_color; i++)
+				{
+					TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
+				}
+
+				total_color = hit_sphere.Color * TotalColorUntilNow;
 			}
 		}
 
-		else
+		else if (new_ray.Reflected)
 		{
-			break;
+			vec3 TotalColorUntilNow = vec3(1.0);
+
+			for (int i = 0; i < current_color; i++)
+			{
+				TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
+			}
+
+			new_ray.Reflected = false;
+			total_color = TotalColorUntilNow * GetGradientColorAtRay(new_ray);
 		}
 
-		if (hit_sphere.Material == MATERIAL_DIFFUSE)
-		{
-			// Get the final ray direction
-
-			#ifdef USE_HEMISPHERICAL_DIFFUSE_SCATTERING
-				vec3 R = cosWeightedRandomHemisphereDirection(ClosestSphere.Normal);
-			#else
-				vec3 R;
-				R.x = nextFloat(RNG_SEED, -1.0f, 1.0f);
-				R.y = nextFloat(RNG_SEED, -1.0f, 1.0f);
-				R.z = nextFloat(RNG_SEED, -1.0f, 1.0f);
-			#endif
-
-			vec3 S = ClosestSphere.Normal + R;
-			new_ray.Origin = ClosestSphere.Point;
-			new_ray.Direction = normalize(S);
-
-			FinalColor = hit_sphere.Color;
-			FinalColor /= 2.0f;
-			FinalColor = FinalColor / float(diffuse_hit_count + 1);
-		}
-
-		if (hit_sphere.Material == MATERIAL_METAL)
-		{
-			vec3 R = cosWeightedRandomHemisphereDirection(ClosestSphere.Normal);
-
-			vec3 ReflectedRayDirection = reflect(ray.Direction, ClosestSphere.Normal);
-			ReflectedRayDirection += first_sphere.FuzzLevel * R;
-			
-			new_ray.Origin = ClosestSphere.Point;
-			new_ray.Direction = ReflectedRayDirection;
-		}
-
-		diffuse_hit_count++;
+		hit_count++;
 	}
 
-	if (FinalColor == vec3(0.0f))
-	{
-		FinalColor = GetGradientColorAtRay(new_ray);
-	}
-
-	if (first_sphere.Material == MATERIAL_DIFFUSE)
-	{
-		FinalColor = first_sphere.Color;
-		FinalColor /= 2.0f;
-		FinalColor = FinalColor / float(diffuse_hit_count + 1);
-	}
-
-	else if (first_sphere.Material == MATERIAL_METAL)
-	{
-		FinalColor = FinalColor * first_sphere.Color;
-	}
-
-	return FinalColor;
+	return total_color;
 }
 
 void main()
