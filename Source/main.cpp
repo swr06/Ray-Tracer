@@ -56,6 +56,16 @@ class RGB
 	RGB() : r(0), g(0), b(0)
 	{}
 
+	inline glm::vec3 ToVec3() const noexcept
+	{
+		glm::vec3 vec;
+		vec.r = static_cast<float>(r);
+		vec.g = static_cast<float>(g);
+		vec.b = static_cast<float>(b);
+
+		return vec;
+	}
+
 	byte r;
 	byte g;
 	byte b;
@@ -381,7 +391,7 @@ public :
 
 	Sphere() :
 		Center(glm::vec3(0.0f)),
-		Color(glm::vec3(0.0f)),
+		Color(glm::vec3(1.0f)),
 		Radius(0.0f),
 		SphereMaterial(Material::Diffuse),
 		FuzzLevel(0.0f)
@@ -519,10 +529,10 @@ inline bool RaySphereIntersectionTest(const Sphere& sphere, const Ray& ray, floa
 
 std::vector<Sphere> Spheres = 
 { 
-	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(0.8f, 0.6f, 0.2f), 0.5f, Material::Metal, 0.65f),
-	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse),
-	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0.8f, 0.8f, 0.8f), 0.5f, Material::Metal, 0.0f),
-	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(255, 215, 10), 100.0f, Material::Diffuse)
+	Sphere(glm::vec3(-1.0, 0.0, -1.0), glm::vec3(255, 0, 0), 0.5f, Material::Diffuse, 0.5f),
+	Sphere(glm::vec3(0.0, 0.0, -1.0), glm::vec3(0, 255, 0), 0.5f, Material::Diffuse),
+	Sphere(glm::vec3(1.0, 0.0, -1.0), glm::vec3(0, 0, 255), 0.5f, Material::Diffuse, 0.0f),
+	Sphere(glm::vec3(0.0f, -100.5f, -1.0f), glm::vec3(0, 255, 0), 100.0f, Material::Diffuse)
 };
 
 bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord& closest_hit_rec, Sphere& sphere)
@@ -551,50 +561,36 @@ bool IntersectSceneSpheres(const Ray& ray, float tmin, float tmax, RayHitRecord&
 RGB GetRayColor(const Ray& ray, int ray_depth)
 {
 	Sphere hit_sphere;
+	RayHitRecord closest_record;
 
-	if (ray_depth <= 0)
+	Ray new_ray = ray;
+	glm::vec3 total_color = GetGradientColorAtRay(ray).ToVec3();
+	int hit_count = 0;
+	std::vector<glm::vec3> diffuse_colors;
+
+	while (hit_count < 6)
 	{
-		return RGB(0, 0, 0);
-	}
-
-	RayHitRecord ClosestSphere;
-
-	if (IntersectSceneSpheres(ray, 0.001f, _INFINITY, ClosestSphere, hit_sphere))
-	{
-		if (hit_sphere.SphereMaterial == Material::Diffuse)
+		if (IntersectSceneSpheres(new_ray, 0.001f, _INFINITY, closest_record, hit_sphere))
 		{
-			glm::vec3 S = ClosestSphere.Normal + GeneratePointInUnitSphere();
-			Ray new_ray(ClosestSphere.Point, S);
+			glm::vec3 S = closest_record.Normal + GeneratePointInUnitSphere();
+			new_ray = Ray(closest_record.Point, S);
 
-			RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
-			Ray_Color.r = Ray_Color.r / 2;
-			Ray_Color.g = Ray_Color.g / 2;
-			Ray_Color.b = Ray_Color.b / 2;
+			glm::vec3 Color = hit_sphere.Color;
+			glm::vec3 TotalColorUntilNow = glm::vec3(1.0);
 
-			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
-			glm::vec3 FinalColor = hit_sphere.Color * Color;
-			//glm::vec3 FinalColor = glm::mix(hit_sphere.Color, Color, 0.4f);
+			for (int i = 0; i < diffuse_colors.size(); i++)
+			{
+				TotalColorUntilNow *= diffuse_colors[i] * 0.5f;
+			}
 
-			return ToRGB(FinalColor);
+			total_color = (Color * 0.5f) * TotalColorUntilNow;
+			diffuse_colors.push_back(Color);
 		}
 
-		else if (hit_sphere.SphereMaterial == Material::Metal)
-		{
-			glm::vec3 ReflectedRayDirection = glm::reflect(ray.GetDirection(), ClosestSphere.Normal);
-			ReflectedRayDirection += hit_sphere.FuzzLevel * GeneratePointInUnitSphere();
-			Ray new_ray(ClosestSphere.Point, ReflectedRayDirection);
-
-			RGB Ray_Color = GetRayColor(new_ray, ray_depth - 1);
-			glm::vec3 Color = { Ray_Color.r, Ray_Color.g, Ray_Color.b };
-			glm::vec3 FinalColor = hit_sphere.Color * Color;
-
-			return ToRGB(FinalColor);
-		}
-
-		return RGB(255, 255, 255);
+		hit_count++;
 	}
 
-	return GetGradientColorAtRay(ray);
+	return ToRGB(total_color);
 }
 
 /*Camera g_SceneCamera(glm::vec3(-2.0f, 2.0f, 1.0f),
@@ -607,8 +603,8 @@ Camera g_SceneCamera(glm::vec3(0.0f),
 	glm::vec3(0.0f, 1.0f, 0.0f),
 	90.0f);
 
-const int SPP = 100;
-const int RAY_DEPTH = 10;
+const int SPP = 20;
+const int RAY_DEPTH = 5;
 
 void TraceThreadFunction(int xstart, int ystart, int xsize, int ysize)
 {
