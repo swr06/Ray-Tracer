@@ -2,12 +2,12 @@
 
 // Compile time flags
 #define USE_HEMISPHERICAL_DIFFUSE_SCATTERING
-//#define ANIMATE_NOISE
+#define ANIMATE_NOISE
 
 #define MAX_RAY_HIT_DISTANCE 100000.0f
 #define PI 3.14159265354f
-#define RAY_BOUNCE_LIMIT 3
-#define SAMPLES_PER_PIXEL 20
+#define RAY_BOUNCE_LIMIT 4
+#define SAMPLES_PER_PIXEL 8
 #define MAX_SPHERES 5
 
 out vec3 o_Color;
