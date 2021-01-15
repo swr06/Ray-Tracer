@@ -151,6 +151,7 @@
   <ItemGroup>
     <ClCompile Include="Core\Application.cpp" />
     <ClCompile Include="Core\CubeTextureMap.cpp" />
+    <ClCompile Include="Core\Framebuffer.cpp" />
     <ClCompile Include="Core\IndexBuffer.cpp" />
     <ClCompile Include="Core\Random.cpp" />
     <ClCompile Include="Core\Shader.cpp" />
@@ -166,16 +167,17 @@
     <ClCompile Include="Dependencies\imgui\imgui_widgets.cpp" />
     <ClCompile Include="main.cpp">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
     </ClCompile>
     <ClCompile Include="_main.cpp">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</ExcludedFromBuild>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Core\Application.h" />
     <ClInclude Include="Core\CubeTextureMap.h" />
+    <ClInclude Include="Core\Framebuffer.h" />
     <ClInclude Include="Core\IndexBuffer.h" />
     <ClInclude Include="Core\Random.h" />
     <ClInclude Include="Core\Shader.h" />
@@ -192,8 +194,8 @@
     <ClInclude Include="Dependencies\imgui\imstb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Core\Shaders\BasicFrag.glsl" />
-    <None Include="Core\Shaders\BasicVert.glsl" />
+    <None Include="Core\Shaders\DenoiseFrag.glsl" />
+    <None Include="Core\Shaders\DenoiseVert.glsl" />
     <None Include="Core\Shaders\RayTraceFrag.glsl" />
     <None Include="Core\Shaders\RayTraceVert.glsl" />
   </ItemGroup>

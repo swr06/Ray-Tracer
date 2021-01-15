@@ -80,6 +80,9 @@
     <ClCompile Include="Core\stb_image.cpp">
       <Filter>Source Files\GL Classes</Filter>
     </ClCompile>
+    <ClCompile Include="Core\Framebuffer.cpp">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Dependencies\imgui\imconfig.h">
@@ -130,18 +133,21 @@
     <ClInclude Include="Core\stb_image.h">
       <Filter>Source Files\GL Classes</Filter>
     </ClInclude>
+    <ClInclude Include="Core\Framebuffer.h">
+      <Filter>Source Files\GL Classes</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Core\Shaders\BasicFrag.glsl">
-      <Filter>Source Files\Shaders</Filter>
-    </None>
-    <None Include="Core\Shaders\BasicVert.glsl">
-      <Filter>Source Files\Shaders</Filter>
-    </None>
     <None Include="Core\Shaders\RayTraceFrag.glsl">
       <Filter>Source Files\Shaders</Filter>
     </None>
     <None Include="Core\Shaders\RayTraceVert.glsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\DenoiseFrag.glsl">
+      <Filter>Source Files\Shaders</Filter>
+    </None>
+    <None Include="Core\Shaders\DenoiseVert.glsl">
       <Filter>Source Files\Shaders</Filter>
     </None>
   </ItemGroup>

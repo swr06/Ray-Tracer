@@ -18,11 +18,14 @@
 #include "Core/VertexArray.h"
 #include "Core/Shader.h"
 #include "Core/CubeTextureMap.h"
+#include "Core/Framebuffer.h"
 
 using namespace RayTracer;
 
 const int g_Width = 1024;
 const int g_Height = 576;
+int g_SPP = 1;
+bool g_Denoise = false;
 std::unique_ptr<GLClasses::Shader> _TraceShader;
 std::pair<std::string, std::string> TraceShaderPaths = { "Core/Shaders/RayTraceVert.glsl", "Core/Shaders/RayTraceFrag.glsl" }; ;
 
@@ -220,6 +223,28 @@ public:
 			_TraceShader->CompileShaders();
 		}
 
+		if (e.type == EventTypes::KeyPress && e.key == GLFW_KEY_F2)
+		{
+			g_Denoise = !g_Denoise;
+		}
+
+		if (e.type == EventTypes::KeyPress && e.key == GLFW_KEY_F5)
+		{
+			if (g_SPP < 8)
+			{
+				g_SPP++;
+			}
+		}
+
+		if (e.type == EventTypes::KeyPress && e.key == GLFW_KEY_F6)
+		{
+			if (g_SPP > 1)
+			{
+				g_SPP--;
+			}
+		}
+
+
 		if (e.type == EventTypes::MouseMove)
 		{
 			g_SceneCamera.UpdateOnMouseMovement(e.mx, e.my);
@@ -302,6 +327,11 @@ void SetSceneSphereUniforms(GLClasses::Shader& shader)
 
 int main()
 {
+	long long m_CurrentFrame = 1;
+
+	g_App.Initialize();
+	g_App.SetCursorLocked(true);
+
 	std::vector<std::string> paths = 
 	{
 		"Res/right.bmp",
@@ -312,12 +342,17 @@ int main()
 		"Res/back.bmp"
 	};
 
-	g_App.Initialize();
-	g_App.SetCursorLocked(true);
+	GLClasses::Shader DenoiseShader;
+	DenoiseShader.CreateShaderProgramFromFile("Core/Shaders/DenoiseVert.glsl", "Core/Shaders/DenoiseFrag.glsl");
+	DenoiseShader.CompileShaders();
+
+	GLClasses::Framebuffer Accumulation_Buffer(g_Width, g_Height, false);
+	GLClasses::Framebuffer FBO_1(g_Width, g_Height, false);
+	GLClasses::Framebuffer FBO_2(g_Width, g_Height, false);
 
 	_TraceShader = std::unique_ptr<GLClasses::Shader>(new GLClasses::Shader);
 	GLClasses::Shader& TraceShader = *_TraceShader;
-	
+
 	GLClasses::VertexBuffer VBO;
 	GLClasses::VertexArray VAO;
 	GLClasses::CubeTextureMap SKYBOX;
@@ -345,21 +380,28 @@ int main()
 
 	while (!glfwWindowShouldClose(g_App.GetWindow()))
 	{
-		glfwSwapInterval(0);
+		int FBO_Used = 0;
 
-		// Camera
+		g_App.OnUpdate();
 
-		GLFWwindow* window = g_App.GetWindow();
+		// Bind the approprite FBO
+		if (m_CurrentFrame % 2 == 0)
+		{
+			FBO_2.Bind();
+			FBO_Used = 2;
+		}
 
-		float speed = 0.05f;
+		else
+		{
+			FBO_1.Bind();
+			FBO_Used = 1;
+		}
+
 
 		glDisable(GL_CULL_FACE);
 		glDisable(GL_DEPTH_TEST);
-		glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
 		glViewport(0, 0, g_Width, g_Height);
-
-		g_App.OnUpdate();
 
 		// Render
 		TraceShader.Use();
@@ -371,8 +413,9 @@ int main()
 		TraceShader.SetVector3f("u_CameraVertical", g_SceneCamera.m_Vertical);
 		TraceShader.SetVector3f("u_CameraOrigin", g_SceneCamera.m_Origin);
 		TraceShader.SetInteger("u_Skybox", 0);
+		TraceShader.SetInteger("SAMPLES_PER_PIXEL", g_SPP);
 
-		glActiveTexture(0);
+		glActiveTexture(GL_TEXTURE0);
 		glBindTexture(GL_TEXTURE_CUBE_MAP, SKYBOX.GetID());
 
 		SetSceneSphereUniforms(TraceShader);
@@ -381,12 +424,71 @@ int main()
 		glDrawArrays(GL_TRIANGLES, 0, 6);
 		VAO.Unbind();
 
-		g_App.FinishFrame();
+		// Finish the render
+		DenoiseShader.Use();
+		Accumulation_Buffer.Bind();
 
-		CurrentFrame++;
+		DenoiseShader.SetInteger("u_CurrentFrame", 0);
+		DenoiseShader.SetInteger("u_PreviousFrame", 1);
+		DenoiseShader.SetBool("u_Denoise", g_Denoise);
+
+		if (FBO_Used == 2)
+		{
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, FBO_2.GetTexture());
+
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, FBO_1.GetTexture());
+		}
+
+		else
+		{
+			glActiveTexture(GL_TEXTURE1);
+			glBindTexture(GL_TEXTURE_2D, FBO_2.GetTexture());
+
+			glActiveTexture(GL_TEXTURE0);
+			glBindTexture(GL_TEXTURE_2D, FBO_1.GetTexture());
+		}
+
+		VAO.Bind();
+		glDrawArrays(GL_TRIANGLES, 0, 6);
+		VAO.Unbind();
+
+		// Blit the accumulation buffer onto the screen
+		Accumulation_Buffer.Bind();
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+		glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0);
+		glBlitFramebuffer(0, 0, Accumulation_Buffer.GetWidth(), Accumulation_Buffer.GetHeight(), 
+			0, 0, g_Width, g_Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+		// Blit the accumulation buffer to the FBO used
+
+		Accumulation_Buffer.Bind();
+
+		glDisable(GL_DEPTH_TEST);
+		glDisable(GL_CULL_FACE);
+
+		if (FBO_Used == 1)
+		{
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO_1.GetFramebuffer());
+		}
+
+		else
+		{
+			glBindFramebuffer(GL_DRAW_FRAMEBUFFER, FBO_2.GetFramebuffer());
+		}
+
+		glBlitFramebuffer(0, 0, Accumulation_Buffer.GetWidth(), Accumulation_Buffer.GetHeight(),
+			0, 0, g_Width, g_Height, GL_COLOR_BUFFER_BIT, GL_NEAREST);
+
+
 		DisplayFrameRate(g_App.GetWindow(), "Raytracer!");
-		
+		g_App.FinishFrame();
 		g_SceneCamera.Update();
+
+		m_CurrentFrame++;
+		CurrentFrame++;
 	}
 
 	return 0;
