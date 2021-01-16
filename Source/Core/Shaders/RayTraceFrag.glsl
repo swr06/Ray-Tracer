@@ -79,7 +79,7 @@ uniform int u_SceneSphereCount;
 // Functions
 
 vec3 lerp(vec3 v1, vec3 v2, float t);
-vec3 GetGradientColorAtRay(Ray ray);
+vec3 GetEnvironmentColorAtRay(Ray ray);
 
 // Utility
 
@@ -192,12 +192,8 @@ vec3 RandomPointInUnitSphereRejective()
 
 // ----------------------------------------
 
-vec3 GetGradientColorAtRay(Ray ray)
+vec3 GetEnvironmentColorAtRay(Ray ray)
 {
-	//vec3 v = lerp(vec3(255.0f / 255.0f, 255.0f / 255.0f, 255.0f / 255.0f),
-	//		vec3(128.0f / 255.0f, 178.0f / 255.0f, 255.0f / 255.0f), ray.Direction.y * 1.25f);
-	//return v;
-
 	return texture(u_Skybox, ray.Direction).rgb;
 }
 
@@ -297,7 +293,7 @@ vec3 GetRayColor(Ray ray)
 	RayHitRecord closest_record;
 
 	Ray new_ray = ray;
-	vec3 total_color = GetGradientColorAtRay(ray);
+	vec3 total_color = GetEnvironmentColorAtRay(ray);
 	int hit_count = 0;
 	vec3 diffuse_colors[RAY_BOUNCE_LIMIT + 2];
 	int current_color = 0;
@@ -360,7 +356,7 @@ vec3 GetRayColor(Ray ray)
 			}
 
 			new_ray.Reflected = false;
-			total_color = TotalColorUntilNow * GetGradientColorAtRay(new_ray);
+			total_color = TotalColorUntilNow * GetEnvironmentColorAtRay(new_ray);
 		}
 
 		hit_count++;
