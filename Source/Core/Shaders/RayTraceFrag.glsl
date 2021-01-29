@@ -34,6 +34,7 @@ vec3 Ray_GetAt(Ray ray, float scale)
 const int MATERIAL_INVALID = -1;
 const int MATERIAL_DIFFUSE = 1;
 const int MATERIAL_METAL = 2;
+const int MATERIAL_LIGHT = 3;
 
 // Sphere
 struct Sphere
@@ -344,6 +345,18 @@ vec3 GetRayColor(Ray ray)
 
 				total_color = hit_sphere.Color * TotalColorUntilNow;
 			}
+
+			else if (hit_sphere.Material == MATERIAL_LIGHT)
+			{
+				vec3 TotalColorUntilNow = vec3(1.0);
+
+				for (int i = 0; i < current_color; i++)
+				{
+					TotalColorUntilNow *= diffuse_colors[i];
+				}
+
+				total_color = hit_sphere.Color * TotalColorUntilNow;
+			}
 		}
 
 		else if (new_ray.Reflected)
@@ -389,4 +402,5 @@ void main()
 
 	FinalColor = FinalColor / float(SAMPLES_PER_PIXEL);
 	o_Color = FinalColor;
+	o_Color *= 0.2f;
 }
