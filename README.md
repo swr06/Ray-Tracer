@@ -1,2 +1,2 @@
 # Ray-Tracer
-A Tiny CPU Side Raytracer
+A Tiny CPU/GPU Side Raytracer
